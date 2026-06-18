@@ -1,11 +1,13 @@
 {
   "name": "@multi-tenant-saas/console",
   "version": "1.0.0",
-  "description": "Multi-Tenant SaaS 租户后台管理界面",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:bootstrap": "VITE_UI_FRAMEWORK=bootstrap vite",
     "build": "vite build",
+    "build:bootstrap": "VITE_UI_FRAMEWORK=bootstrap vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,8 +15,8 @@
     "vue-router": "^4.2.0",
     "pinia": "^2.1.0",
     "axios": "^1.6.0",
-    "element-plus": "^2.5.0",
-    "@element-plus/icons-vue": "^2.3.0"
+    "bootstrap": "^5.3.0",
+    "@popperjs/core": "^2.11.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
