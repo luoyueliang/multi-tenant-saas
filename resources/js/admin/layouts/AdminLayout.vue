@@ -14,6 +14,12 @@
         <a href="/admin/users" :class="['nav-item', { active: isActive('/users') }]">
           <span>用户管理</span>
         </a>
+        <a href="/admin/domains" :class="['nav-item', { active: isActive('/domains') }]">
+          <span>域名管理</span>
+        </a>
+        <a href="/admin/oauth" :class="['nav-item', { active: isActive('/oauth') }]">
+          <span>第三方登录</span>
+        </a>
         <a href="/admin/settings" :class="['nav-item', { active: isActive('/settings') }]">
           <span>系统设置</span>
         </a>

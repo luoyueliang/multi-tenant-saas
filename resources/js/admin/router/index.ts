@@ -40,6 +40,18 @@ const router = createRouter({
           meta: { title: '用户管理', requiresAuth: true },
         },
         {
+          path: 'domains',
+          name: 'Domains',
+          component: () => import('../views/DomainSettings.vue'),
+          meta: { title: '域名管理', requiresAuth: true },
+        },
+        {
+          path: 'oauth',
+          name: 'OAuthSettings',
+          component: () => import('../views/OAuthSettings.vue'),
+          meta: { title: '第三方登录', requiresAuth: true },
+        },
+        {
           path: 'settings',
           name: 'Settings',
           component: () => import('../views/Settings.vue'),
