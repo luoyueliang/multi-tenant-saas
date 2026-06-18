@@ -198,6 +198,70 @@ npm install @varlet/ui
 
 ---
 
+### 7. Bootstrap
+
+| 属性 | 值 |
+|------|-----|
+| **名称** | Bootstrap |
+| **版本** | ^5.3.0 |
+| **官网** | https://getbootstrap.com |
+| **GitHub** | https://github.com/twbs/bootstrap |
+| **组件数** | 25+ |
+| **TypeScript** | ⚠️ 部分支持 |
+| **暗色主题** | ✅ 支持 |
+| **国际化** | ❌ 不支持 |
+| **按需导入** | ✅ 支持 |
+
+**特点**：
+- 全球最流行的前端框架
+- 响应式设计
+- 强大的栅格系统
+- 广泛的社区支持
+
+**适用场景**：
+- 快速原型开发
+- 响应式网站
+- 传统项目
+
+**安装命令**：
+```bash
+npm install bootstrap @popperjs/core
+```
+
+---
+
+### 8. Vali Admin
+
+| 属性 | 值 |
+|------|-----|
+| **名称** | Vali Admin |
+| **版本** | ^3.0.0 |
+| **官网** | https://pratikborsadiya.in/vali-admin |
+| **GitHub** | https://github.com/pratikborsadiya/vali-admin |
+| **组件数** | 基于 Bootstrap |
+| **TypeScript** | ⚠️ 部分支持 |
+| **暗色主题** | ✅ 支持 |
+| **国际化** | ❌ 不支持 |
+| **按需导入** | ❌ 不支持 |
+
+**特点**：
+- 基于 Bootstrap 5
+- 免费开源
+- 响应式设计
+- 多种布局选项
+
+**适用场景**：
+- 免费管理后台模板
+- Bootstrap 项目
+- 快速开发
+
+**安装命令**：
+```bash
+npm install bootstrap @popperjs/core
+```
+
+---
+
 ## 框架对比
 
 | 框架 | 组件数 | TypeScript | 暗色主题 | 国际化 | 包大小 | 学习曲线 |
@@ -208,6 +272,8 @@ npm install @varlet/ui
 | Arco Design | 70+ | ✅ | ✅ | ✅ | 中 | 低 |
 | TDesign | 70+ | ✅ | ✅ | ✅ | 中 | 中 |
 | Varlet | 60+ | ✅ | ✅ | ✅ | 小 | 低 |
+| Bootstrap | 25+ | ⚠️ | ✅ | ❌ | 中 | 低 |
+| Vali Admin | 基于 Bootstrap | ⚠️ | ✅ | ❌ | 中 | 低 |
 
 ---
 
@@ -249,6 +315,18 @@ npm install @varlet/ui
 - 轻量级
 - 移动端友好
 
+### 快速原型
+**推荐 Bootstrap**
+- 全球流行
+- 响应式设计
+- 社区支持广泛
+
+### 免费模板
+**推荐 Vali Admin**
+- 免费开源
+- 基于 Bootstrap
+- 多种布局
+
 ---
 
 ## 切换框架
@@ -264,6 +342,12 @@ npm run dev:ant-design
 
 # Naive UI
 npm run dev:naive-ui
+
+# Bootstrap
+npm run dev:bootstrap
+
+# Vali Admin
+npm run dev:vali-admin
 ```
 
 ### 运行时切换
