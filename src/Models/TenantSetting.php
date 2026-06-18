@@ -2,17 +2,15 @@
 
 namespace MultiTenantSaas\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Cache;
-use MultiTenantSaas\Concerns\BelongsToTenant;
 use MultiTenantSaas\Concerns\HasGlobalId;
+use MultiTenantSaas\Scopes\TenantScope;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Crypt;
 
-/**
- * 租户配置模型
- */
 class TenantSetting extends Model
 {
-    use BelongsToTenant, HasGlobalId;
+    use HasGlobalId;
 
     protected $primaryKey = 'setting_id';
 
@@ -25,77 +23,173 @@ class TenantSetting extends Model
         'description',
     ];
 
+    protected $attributes = [
+        'is_encrypted' => false,
+    ];
+
     protected function casts(): array
     {
         return [
+            'setting_id' => 'integer',
+            'tenant_id' => 'integer',
             'is_encrypted' => 'boolean',
         ];
     }
 
-    /**
-     * 获取配置值（带缓存）
-     */
-    public static function get(int $tenantId, string $group, string $key, mixed $default = null): mixed
+    protected static function booted(): void
     {
-        $cacheKey = "tenant_setting:{$tenantId}:{$group}:{$key}";
+        static::addGlobalScope(new TenantScope);
 
-        return Cache::remember($cacheKey, 3600, function () use ($tenantId, $group, $key, $default) {
-            $setting = static::where('tenant_id', $tenantId)
-                ->where('group', $group)
-                ->where('key', $key)
-                ->first();
+        static::saving(function (self $model) {
+            if ($model->is_encrypted && $model->isDirty('value')) {
+                $value = $model->attributes['value'] ?? null;
 
-            if (!$setting) {
-                return $default;
+                if ($value === null) {
+                    return;
+                }
+
+                try {
+                    $model->attributes['value'] = Crypt::encryptString($value);
+                } catch (\Exception $e) {
+                    logger()->error('Failed to encrypt tenant setting', [
+                        'tenant_id' => $model->tenant_id,
+                        'group' => $model->group,
+                        'key' => $model->key,
+                        'error' => $e->getMessage(),
+                    ]);
+                    throw $e;
+                }
             }
-
-            return $setting->is_encrypted ? decrypt($setting->value) : $setting->value;
         });
     }
 
-    /**
-     * 设置配置值
-     */
-    public static function set(int $tenantId, string $group, string $key, mixed $value, bool $encrypted = false, string $description = ''): void
+    public function tenant(): BelongsTo
     {
-        $storeValue = $encrypted ? encrypt($value) : $value;
+        return $this->belongsTo(Tenant::class, 'tenant_id', 'tenant_id');
+    }
 
-        static::updateOrCreate(
-            ['tenant_id' => $tenantId, 'group' => $group, 'key' => $key],
+    public function getValueAttribute($value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($this->is_encrypted) {
+            try {
+                $value = Crypt::decryptString($value);
+            } catch (\Exception $e) {
+                logger()->error('Failed to decrypt tenant setting', [
+                    'tenant_id' => $this->tenant_id,
+                    'group' => $this->group,
+                    'key' => $this->key,
+                    'error' => $e->getMessage(),
+                ]);
+                return null;
+            }
+        }
+
+        if ($this->isJson($value)) {
+            return json_decode($value, true);
+        }
+
+        return $value;
+    }
+
+    public function setValueAttribute($value): void
+    {
+        if (is_array($value) || is_object($value)) {
+            $value = json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        $this->attributes['value'] = $value;
+    }
+
+    private function isJson(string $string): bool
+    {
+        if (!is_string($string)) {
+            return false;
+        }
+
+        json_decode($string);
+        return json_last_error() === JSON_ERROR_NONE;
+    }
+
+    public static function getValue(int $tenantId, string $group, string $key, mixed $default = null): mixed
+    {
+        return static::get($tenantId, $group, $key, $default);
+    }
+
+    public static function get(int $tenantId, string $group, string $key, mixed $default = null): mixed
+    {
+        $setting = static::withoutGlobalScope(TenantScope::class)
+            ->where('tenant_id', $tenantId)
+            ->where('group', $group)
+            ->where('key', $key)
+            ->first();
+
+        return $setting ? $setting->value : $default;
+    }
+
+    public static function setValue(
+        int $tenantId,
+        string $group,
+        string $key,
+        mixed $value,
+        ?string $description = null,
+        bool $isEncrypted = false
+    ): self {
+        return static::set($tenantId, $group, $key, $value, $isEncrypted, $description);
+    }
+
+    public static function set(
+        int $tenantId,
+        string $group,
+        string $key,
+        mixed $value,
+        bool $isEncrypted = false,
+        ?string $description = null
+    ): self {
+        return static::withoutGlobalScope(TenantScope::class)->updateOrCreate(
             [
-                'value' => $storeValue,
-                'is_encrypted' => $encrypted,
+                'tenant_id' => $tenantId,
+                'group' => $group,
+                'key' => $key,
+            ],
+            [
+                'value' => $value,
+                'is_encrypted' => $isEncrypted,
                 'description' => $description,
             ]
         );
-
-        Cache::forget("tenant_setting:{$tenantId}:{$group}:{$key}");
     }
 
-    /**
-     * 批量获取配置组
-     */
     public static function getGroup(int $tenantId, string $group): array
     {
-        $cacheKey = "tenant_setting_group:{$tenantId}:{$group}";
-
-        return Cache::remember($cacheKey, 3600, function () use ($tenantId, $group) {
-            return static::where('tenant_id', $tenantId)
-                ->where('group', $group)
-                ->get()
-                ->mapWithKeys(fn ($s) => [
-                    $s->key => $s->is_encrypted ? decrypt($s->value) : $s->value
-                ])
-                ->toArray();
-        });
+        return static::withoutGlobalScope(TenantScope::class)
+            ->where('tenant_id', $tenantId)
+            ->where('group', $group)
+            ->get()
+            ->pluck('value', 'key')
+            ->toArray();
     }
 
-    /**
-     * 清除租户所有配置缓存
-     */
-    public static function flushCache(int $tenantId): void
+    public static function setGroup(int $tenantId, string $group, array $settings): void
     {
-        Cache::deleteMatchingPattern("tenant_setting:{$tenantId}:*");
-        Cache::deleteMatchingPattern("tenant_setting_group:{$tenantId}:*");
+        foreach ($settings as $key => $config) {
+            $value = is_array($config) ? $config['value'] : $config;
+            $isEncrypted = is_array($config) ? ($config['is_encrypted'] ?? false) : false;
+            $description = is_array($config) ? ($config['description'] ?? null) : null;
+
+            static::set($tenantId, $group, $key, $value, $isEncrypted, $description);
+        }
+    }
+
+    public static function remove(int $tenantId, string $group, string $key): bool
+    {
+        return static::withoutGlobalScope(TenantScope::class)
+            ->where('tenant_id', $tenantId)
+            ->where('group', $group)
+            ->where('key', $key)
+            ->delete() > 0;
     }
 }

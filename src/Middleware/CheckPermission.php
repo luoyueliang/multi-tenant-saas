@@ -33,7 +33,8 @@ class CheckPermission
 
         return match ($domainType) {
             'admin' => $this->checkAdminAccess($request, $user, $next, $role),
-            'console', 'api' => $this->checkTenantAccess($request, $user, $next, $role),
+            'console' => $this->checkConsoleAccess($request, $user, $next, $role),
+            'api', 'app' => $this->checkTenantAccess($request, $user, $next, $role),
             default => $next($request),
         };
     }
@@ -51,7 +52,46 @@ class CheckPermission
     }
 
     /**
-     * 检查租户访问权限
+     * 检查租户后台访问权限（仅 tenant_admin 可访问）
+     */
+    protected function checkConsoleAccess(Request $request, $user, Closure $next, ?string $role): Response
+    {
+        $tenantId = TenantContext::getId();
+
+        if (!$tenantId) {
+            return $this->forbidden($request, '缺少租户信息');
+        }
+
+        // super_admin 可以访问所有租户后台
+        if ($user->role === self::ROLE_SUPER_ADMIN) {
+            TenantContext::setTenantRole(self::ROLE_SUPER_ADMIN);
+            return $next($request);
+        }
+
+        // 检查用户是否属于该租户
+        $tenantUser = $user->tenants()
+            ->where('tenants.tenant_id', $tenantId)
+            ->wherePivot('is_active', true)
+            ->first();
+
+        if (!$tenantUser) {
+            return $this->forbidden($request, '您不属于该租户');
+        }
+
+        $tenantRole = $tenantUser->pivot->role;
+
+        // console 仅允许 tenant_admin，end_user 不能访问
+        if ($tenantRole !== self::ROLE_TENANT_ADMIN) {
+            return $this->forbidden($request, '仅租户管理员可以访问管理后台');
+        }
+
+        TenantContext::setTenantRole($tenantRole);
+
+        return $next($request);
+    }
+
+    /**
+     * 检查租户访问权限（api/app 用，tenant_admin 和 end_user 都可访问）
      */
     protected function checkTenantAccess(Request $request, $user, Closure $next, ?string $role): Response
     {

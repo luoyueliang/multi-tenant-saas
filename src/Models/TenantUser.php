@@ -2,17 +2,15 @@
 
 namespace MultiTenantSaas\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use MultiTenantSaas\Concerns\BelongsToTenant;
 use MultiTenantSaas\Concerns\HasGlobalId;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * 租户用户关系模型
- */
 class TenantUser extends Model
 {
-    use BelongsToTenant, HasGlobalId;
+    use BelongsToTenant, HasFactory, HasGlobalId;
 
     protected $primaryKey = 'tenant_user_id';
 
@@ -36,33 +34,21 @@ class TenantUser extends Model
         ];
     }
 
-    /**
-     * 关联租户
-     */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class, 'tenant_id', 'tenant_id');
     }
 
-    /**
-     * 关联用户
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
-    /**
-     * 是否为管理员
-     */
     public function isAdmin(): bool
     {
         return $this->role === 'tenant_admin';
     }
 
-    /**
-     * 是否为普通用户
-     */
     public function isEndUser(): bool
     {
         return $this->role === 'end_user';

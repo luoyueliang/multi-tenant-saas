@@ -115,5 +115,13 @@ class TenantContext
         static::$tenant = null;
         static::$domainType = null;
         static::$tenantRole = null;
+        config(['tenancy.current_tenant_id' => null]);
+        
+        $request = request();
+        if ($request && $request->attributes) {
+            $request->attributes->remove('tenant_id');
+            $request->attributes->remove('domain_type');
+            $request->attributes->remove('tenant_role');
+        }
     }
 }

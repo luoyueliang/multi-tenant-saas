@@ -50,7 +50,8 @@ class IdentifyDomain
         }
 
         // Admin域名
-        if ($host === config('app.admin_domain')) {
+        $adminDomain = config('app.admin_domain') ?? config('tenancy.admin_domain');
+        if ($adminDomain && $host === $adminDomain) {
             return self::DOMAIN_ADMIN;
         }
 
