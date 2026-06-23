@@ -111,7 +111,10 @@ ADMIN_DOMAIN=admin.example.com
 
 ```bash
 php artisan migrate
+php artisan db:seed
 ```
+
+> `db:seed` 会创建平台默认租户（ID: 9007199254740991）
 
 ### 创建测试数据
 
