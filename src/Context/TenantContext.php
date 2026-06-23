@@ -48,7 +48,6 @@ class TenantContext
         if ($request) {
             $request->attributes->set('tenant_id', $tenantId);
         }
-        config(['tenancy.current_tenant_id' => $tenantId]);
     }
 
     /**
@@ -104,7 +103,6 @@ class TenantContext
             $request->attributes->set('tenant_object', $tenant);
             $request->attributes->set('tenant_id', $tenant?->getKey());
         }
-        config(['tenancy.current_tenant_id' => $tenant?->getKey()]);
     }
 
     /**
@@ -152,8 +150,6 @@ class TenantContext
      */
     public static function clear(): void
     {
-        config(['tenancy.current_tenant_id' => null]);
-
         $request = static::getRequest();
         if ($request && $request->attributes) {
             $request->attributes->remove('tenant_id');

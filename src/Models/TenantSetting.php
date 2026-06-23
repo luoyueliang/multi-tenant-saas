@@ -184,6 +184,19 @@ class TenantSetting extends Model
             ->toArray();
     }
 
+    /**
+     * 获取租户所有配置（按 tenant_id 显式查询，绕过 TenantScope）
+     */
+    public static function getAll(int $tenantId): array
+    {
+        return static::withoutGlobalScope(TenantScope::class)
+            ->where('tenant_id', $tenantId)
+            ->get()
+            ->groupBy('group')
+            ->map(fn ($items) => $items->pluck('value', 'key')->toArray())
+            ->toArray();
+    }
+
     public static function setGroup(int $tenantId, string $group, array $settings): void
     {
         foreach ($settings as $key => $config) {

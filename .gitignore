@@ -16,7 +16,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-composer.lock
 
 # Laravel 缓存文件
 /bootstrap/cache/*.php

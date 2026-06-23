@@ -106,7 +106,7 @@ class SocialiteService
             $user = User::create([
                 'name' => $socialUser->getName() ?? $socialUser->getNickname(),
                 'email' => $socialUser->getEmail(),
-                'password' => bcrypt(uniqid()),
+                'password' => bcrypt(\Illuminate\Support\Str::random(32)),
                 'role' => 'platform_user',
             ]);
 
