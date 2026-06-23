@@ -1,659 +1,97 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use MultiTenantSaas\Models\User;
-use MultiTenantSaas\Models\Tenant;
-use MultiTenantSaas\Models\TenantUser;
-use MultiTenantSaas\Models\CreditAccount;
-use MultiTenantSaas\Models\CreditTransaction;
-use MultiTenantSaas\Models\AuditLog;
-use MultiTenantSaas\Models\SystemSetting;
-use MultiTenantSaas\Modules\Domain\Services\DomainService;
-use MultiTenantSaas\Modules\SSL\Services\TenantSslService;
-use MultiTenantSaas\Services\PayService;
-use MultiTenantSaas\Services\SocialiteService;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\TenantController;
+use App\Http\Controllers\Api\TenantMemberController;
+use App\Http\Controllers\Api\TenantSettingController;
+use App\Http\Controllers\Api\TenantDomainController;
+use App\Http\Controllers\Api\TenantCreditController;
+use App\Http\Controllers\Api\TenantAuditController;
+use App\Http\Controllers\Api\TenantSslController;
+use App\Http\Controllers\Api\TenantPaymentController;
+use App\Http\Controllers\Api\TenantOAuthController;
+use App\Http\Controllers\Api\TenantTokenController;
+use App\Http\Controllers\Api\TenantQuotaController;
+use App\Http\Controllers\Api\AdminSettingsController;
 
-// ========== 认证 API ==========
+// ========== 认证 API（无需认证） ==========
 Route::prefix('v1/auth')->group(function () {
-    
-    // 登录（速率限制：每分钟5次）
-    Route::post('/login', function (Request $request) {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !password_verify($request->password, $user->password)) {
-            return response()->json(['success' => false, 'message' => '邮箱或密码错误'], 401);
-        }
-
-        if (!$user->is_active) {
-            return response()->json(['success' => false, 'message' => '账号已被禁用'], 403);
-        }
-
-        $token = $user->createToken('admin-token')->plainTextToken;
-
-        // 获取用户关联的租户
-        $tenantUser = TenantUser::where('user_id', $user->user_id)
-            ->where('is_active', true)
-            ->first();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'user_id' => $user->user_id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ],
-                'tenant_id' => $tenantUser?->tenant_id,
-                'token' => $token,
-            ],
-        ]);
-    })->middleware('throttle:5,1');
-
-    // 注册（速率限制：每分钟3次）
-    Route::post('/register', function (Request $request) {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $tenantId = $request->attributes->get('tenant_id');
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'role' => 'platform_user',
-        ]);
-
-        // 关联到当前租户
-        if ($tenantId) {
-            TenantUser::create([
-                'tenant_id' => $tenantId,
-                'user_id' => $user->user_id,
-                'role' => 'end_user',
-                'is_active' => true,
-                'joined_at' => now(),
-            ]);
-        }
-
-        $token = $user->createToken('auth-token')->plainTextToken;
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'user_id' => $user->user_id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ],
-                'tenant_id' => $tenantId,
-                'token' => $token,
-            ],
-        ], 201);
-    })->middleware('throttle:3,1');
-
-    // 忘记密码（生成重置 token，速率限制：每分钟3次）
-    Route::post('/forgot-password', function (Request $request) {
-        $request->validate(['email' => 'required|email']);
-
-        $user = User::where('email', $request->email)->first();
-
-        // 始终返回成功，避免邮箱枚举
-        if ($user) {
-            // 生成重置 token
-            $token = \Illuminate\Support\Str::random(64);
-            $expiresAt = now()->addHour();
-
-            // 存储到 password_reset_tokens 表
-            \Illuminate\Support\Facades\DB::table('password_reset_tokens')->updateOrInsert(
-                ['email' => $user->email],
-                [
-                    'token' => hash('sha256', $token),
-                    'created_at' => now(),
-                ]
-            );
-
-            // TODO: 发送邮件，包含重置链接
-            // 重置链接: https://your-domain.com/reset-password?token={$token}&email={$user->email}
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => '如果该邮箱已注册，您将收到重置密码邮件',
-        ]);
-    })->middleware('throttle:3,1');
-
-    // 重置密码（速率限制：每分钟3次）
-    Route::post('/reset-password', function (Request $request) {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string|min:8|confirmed',
-            'token' => 'required|string',
-        ]);
-
-        // 验证 token
-        $resetRecord = \Illuminate\Support\Facades\DB::table('password_reset_tokens')
-            ->where('email', $request->email)
-            ->first();
-
-        if (!$resetRecord || !hash_equals($resetRecord->token, hash('sha256', $request->token))) {
-            return response()->json(['success' => false, 'message' => '重置链接无效或已过期'], 400);
-        }
-
-        // 检查 token 是否过期（1小时）
-        if (now()->diffInMinutes($resetRecord->created_at) > 60) {
-            \Illuminate\Support\Facades\DB::table('password_reset_tokens')
-                ->where('email', $request->email)
-                ->delete();
-            return response()->json(['success' => false, 'message' => '重置链接已过期，请重新申请'], 400);
-        }
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => '用户不存在'], 404);
-        }
-
-        $user->password = bcrypt($request->password);
-        $user->save();
-
-        // 删除已使用的 token
-        \Illuminate\Support\Facades\DB::table('password_reset_tokens')
-            ->where('email', $request->email)
-            ->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => '密码已重置',
-        ]);
-    })->middleware('throttle:3,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:3,1');
 });
+
+// ========== 支付回调（无需认证） ==========
+Route::post('/v1/pay/wechat/notify', [TenantPaymentController::class, 'wechatNotify']);
+Route::post('/v1/pay/alipay/notify', [TenantPaymentController::class, 'alipayNotify']);
+
+// ========== 第三方登录回调（无需认证） ==========
+Route::get('/v1/auth/{provider}/redirect', [TenantOAuthController::class, 'redirect']);
+Route::get('/v1/auth/{provider}/callback', [TenantOAuthController::class, 'callback']);
 
 // ========== 需要认证的 API ==========
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
-    
-    // ----- 租户管理 (仅 super_admin) -----
-    Route::get('/tenants', function (Request $request) {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
-        }
-        $tenants = Tenant::paginate(15);
-        return response()->json([
-            'success' => true,
-            'data' => $tenants->items(),
-            'meta' => [
-                'current_page' => $tenants->currentPage(),
-                'last_page' => $tenants->lastPage(),
-                'per_page' => $tenants->perPage(),
-                'total' => $tenants->total(),
-            ],
-        ]);
-    });
 
-    Route::get('/tenants/{tenantId}', function (Request $request, int $tenantId) {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
-        }
-        $tenant = Tenant::findOrFail($tenantId);
-        return response()->json(['success' => true, 'data' => $tenant]);
-    });
+    // 认证
+    Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-    Route::put('/tenants/{tenantId}', function (Request $request, int $tenantId) {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
-        }
-        $tenant = Tenant::findOrFail($tenantId);
-        $tenant->update($request->only(['name', 'status', 'subscription_plan', 'custom_domain', 'description', 'contact_name', 'contact_email', 'contact_phone']));
-        return response()->json(['success' => true, 'data' => $tenant]);
-    });
+    // 租户管理（仅 super_admin）
+    Route::get('/tenants', [TenantController::class, 'index']);
+    Route::get('/tenants/{tenantId}', [TenantController::class, 'show']);
+    Route::put('/tenants/{tenantId}', [TenantController::class, 'update']);
+    Route::delete('/tenants/{tenantId}', [TenantController::class, 'destroy']);
 
-    Route::delete('/tenants/{tenantId}', function (Request $request, int $tenantId) {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
-        }
-        Tenant::findOrFail($tenantId)->delete();
-        return response()->json(['success' => true, 'message' => '已删除']);
-    });
+    // 成员管理
+    Route::get('/tenants/{tenantId}/members', [TenantMemberController::class, 'index']);
+    Route::post('/tenants/{tenantId}/members', [TenantMemberController::class, 'store']);
+    Route::put('/tenants/{tenantId}/members/{userId}', [TenantMemberController::class, 'update']);
 
-    // ----- 租户数据操作（需要验证用户属于该租户） -----
-    
-    // 辅助函数：验证用户是否属于该租户
-    $ensureTenantAccess = function (Request $request, int $tenantId) {
-        $user = $request->user();
-        
-        // super_admin 不能访问租户数据
-        if ($user->role === 'super_admin') {
-            return response()->json(['success' => false, 'message' => '系统管理员不能访问租户数据'], 403);
-        }
-        
-        // 检查用户是否属于该租户
-        $tenantUser = $user->tenants()
-            ->where('tenants.tenant_id', $tenantId)
-            ->wherePivot('is_active', true)
-            ->first();
-        
-        if (!$tenantUser) {
-            return response()->json(['success' => false, 'message' => '您不属于该租户'], 403);
-        }
-        
-        return null; // 验证通过
-    };
+    // 积分管理
+    Route::get('/tenants/{tenantId}/credits', [TenantCreditController::class, 'index']);
 
-    // ----- 成员管理 -----
-    Route::get('/tenants/{tenantId}/members', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $members = TenantUser::where('tenant_id', $tenantId)
-            ->join('users', 'users.user_id', '=', 'tenant_users.user_id')
-            ->select('users.user_id', 'users.name', 'users.email', 'tenant_users.role', 'tenant_users.is_active', 'tenant_users.joined_at')
-            ->get();
-        return response()->json(['success' => true, 'data' => $members]);
-    });
+    // 域名管理
+    Route::get('/tenants/{tenantId}/domain', [TenantDomainController::class, 'index']);
+    Route::put('/tenants/{tenantId}/domain', [TenantDomainController::class, 'update']);
+    Route::post('/tenants/{tenantId}/domain/approve', [TenantDomainController::class, 'approve']);
+    Route::post('/tenants/{tenantId}/domain/reject', [TenantDomainController::class, 'reject']);
 
-    Route::post('/tenants/{tenantId}/members', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $request->validate(['user_id' => 'required', 'role' => 'in:tenant_admin,end_user']);
-        
-        TenantUser::updateOrCreate(
-            ['tenant_id' => $tenantId, 'user_id' => $request->user_id],
-            ['role' => $request->role ?? 'end_user', 'is_active' => true, 'joined_at' => now()]
-        );
-        
-        return response()->json(['success' => true, 'message' => '成员已添加']);
-    });
+    // SSL 证书
+    Route::get('/tenants/{tenantId}/ssl', [TenantSslController::class, 'index']);
+    Route::post('/tenants/{tenantId}/ssl', [TenantSslController::class, 'store']);
+    Route::delete('/tenants/{tenantId}/ssl', [TenantSslController::class, 'destroy']);
 
-    Route::put('/tenants/{tenantId}/members/{userId}', function (Request $request, int $tenantId, int $userId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $member = TenantUser::where('tenant_id', $tenantId)->where('user_id', $userId)->firstOrFail();
-        $member->update($request->only(['role', 'is_active']));
-        return response()->json(['success' => true, 'message' => '已更新']);
-    });
+    // 租户配置
+    Route::get('/tenants/{tenantId}/settings/{group?}', [TenantSettingController::class, 'index']);
+    Route::put('/tenants/{tenantId}/settings/{group}', [TenantSettingController::class, 'update']);
+    Route::post('/tenants/{tenantId}/settings/sms/test', [TenantSettingController::class, 'testSms']);
 
-    // ----- 积分管理 -----
-    Route::get('/tenants/{tenantId}/credits', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $account = CreditAccount::where('tenant_id', $tenantId)->whereNull('user_id')->first();
-        $transactions = CreditTransaction::where('tenant_id', $tenantId)
-            ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'balance' => [
-                    'total' => $account?->total_earned ?? 0,
-                    'used' => $account?->total_spent ?? 0,
-                    'available' => $account?->balance ?? 0,
-                ],
-                'transactions' => $transactions,
-            ],
-        ]);
-    });
+    // 支付配置
+    Route::get('/tenants/{tenantId}/payment/config', [TenantPaymentController::class, 'getPaymentConfig']);
+    Route::put('/tenants/{tenantId}/payment/{driver}', [TenantPaymentController::class, 'updatePaymentConfig']);
 
-    // ----- 域名管理 -----
-    Route::get('/tenants/{tenantId}/domain', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $service = new DomainService();
-        return response()->json(['success' => true, 'data' => $service->getDomainInfo($tenantId)]);
-    });
+    // OAuth 配置
+    Route::get('/tenants/{tenantId}/oauth/config', [TenantOAuthController::class, 'getOAuthConfig']);
+    Route::put('/tenants/{tenantId}/oauth/{provider}', [TenantOAuthController::class, 'updateOAuthConfig']);
 
-    Route::put('/tenants/{tenantId}/domain', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $request->validate(['domain' => 'required|string']);
-        $service = new DomainService();
-        $service->updateDomain($tenantId, $request->domain);
-        return response()->json(['success' => true, 'message' => '域名已更新，等待审核']);
-    });
+    // 支付订单
+    Route::get('/tenants/{tenantId}/payment-orders', [TenantPaymentController::class, 'index']);
+    Route::post('/tenants/{tenantId}/payment-orders', [TenantPaymentController::class, 'store']);
 
-    Route::post('/tenants/{tenantId}/domain/approve', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $service = new DomainService();
-        $service->approveDomain($tenantId);
-        return response()->json(['success' => true, 'message' => '域名已审核通过']);
-    });
+    // 审计日志
+    Route::get('/tenants/{tenantId}/audit-logs', [TenantAuditController::class, 'index']);
 
-    Route::post('/tenants/{tenantId}/domain/reject', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $service = new DomainService();
-        $service->rejectDomain($tenantId, $request->reason ?? '');
-        return response()->json(['success' => true, 'message' => '域名已拒绝']);
-    });
+    // API Token
+    Route::get('/tenants/{tenantId}/api-tokens', [TenantTokenController::class, 'index']);
+    Route::post('/tenants/{tenantId}/api-tokens', [TenantTokenController::class, 'store']);
+    Route::delete('/tenants/{tenantId}/api-tokens/{tokenId}', [TenantTokenController::class, 'destroy']);
 
-    // ----- SSL 证书管理 -----
-    Route::get('/tenants/{tenantId}/ssl', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $tenant = Tenant::findOrFail($tenantId);
-        $service = new TenantSslService();
-        return response()->json(['success' => true, 'data' => $service->getCertInfo($tenant)]);
-    });
+    // 配额
+    Route::get('/tenants/{tenantId}/quotas', [TenantQuotaController::class, 'index']);
 
-    Route::post('/tenants/{tenantId}/ssl', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $request->validate([
-            'certificate' => 'required|string',
-            'private_key' => 'required|string',
-        ]);
-        
-        $tenant = Tenant::findOrFail($tenantId);
-        $service = new TenantSslService();
-        $service->storeCertificate($tenant, $request->certificate, $request->private_key);
-        return response()->json(['success' => true, 'message' => 'SSL证书已上传']);
-    });
-
-    Route::delete('/tenants/{tenantId}/ssl', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $tenant = Tenant::findOrFail($tenantId);
-        $service = new TenantSslService();
-        $service->removeCertificate($tenant);
-        return response()->json(['success' => true, 'message' => 'SSL证书已删除']);
-    });
-
-    // ----- 租户配置（通用） -----
-    Route::get('/tenants/{tenantId}/settings/{group?}', function (Request $request, int $tenantId, string $group = null) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        if ($group) {
-            // SMS 配置从全局 config 读取
-            if ($group === 'sms') {
-                return response()->json(['success' => true, 'data' => [
-                    'driver' => config('services.sms.driver', 'log'),
-                    'ww_endpoint' => config('services.sms.ww_endpoint', ''),
-                    'ww_account' => config('services.sms.ww_account', ''),
-                    'ww_sign' => config('services.sms.ww_sign', ''),
-                    'mtedu_endpoint' => config('services.sms.mtedu_endpoint', ''),
-                ]]);
-            }
-            $data = \MultiTenantSaas\Models\TenantSetting::getGroup($tenantId, $group);
-        } else {
-            $data = \MultiTenantSaas\Models\TenantSetting::getAll($tenantId);
-        }
-        
-        return response()->json(['success' => true, 'data' => $data]);
-    });
-
-    Route::put('/tenants/{tenantId}/settings/{group}', function (Request $request, int $tenantId, string $group) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        // SMS 配置存储到全局 system_settings
-        if ($group === 'sms') {
-            $allowed = ['driver', 'ww_endpoint', 'ww_account', 'ww_password', 'ww_sign', 'ww_product_id', 'mtedu_endpoint'];
-            foreach ($request->only($allowed) as $key => $value) {
-                SystemSetting::updateOrCreate(
-                    ['group' => 'sms', 'key' => $key],
-                    ['value' => $value]
-                );
-            }
-            return response()->json(['success' => true, 'message' => '短信配置已更新']);
-        }
-
-        // 其他配置存储到 tenant_settings
-        $allowedGroups = ['info', 'oauth', 'auth', 'mail', 'registration'];
-        if (!in_array($group, $allowedGroups)) {
-            return response()->json(['success' => false, 'message' => '未知配置组'], 400);
-        }
-
-        foreach ($request->all() as $key => $value) {
-            \MultiTenantSaas\Models\TenantSetting::set($tenantId, $group, $key, $value);
-        }
-
-        return response()->json(['success' => true, 'message' => '配置已更新']);
-    });
-
-    // ----- 短信测试发送 -----
-    Route::post('/tenants/{tenantId}/settings/sms/test', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $request->validate(['phone' => 'required|string|regex:/^1[3-9]\d{9}$/']);
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $result = \MultiTenantSaas\Services\SmsService::send($request->phone, $code, 'test');
-        if ($result) {
-            return response()->json(['success' => true, 'message' => '测试短信已发送']);
-        }
-        return response()->json(['success' => false, 'message' => '短信发送失败'], 500);
-    });
-
-    // ----- 支付订单 -----
-    Route::get('/tenants/{tenantId}/payment-orders', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $query = \MultiTenantSaas\Models\FinancialRecord::where('tenant_id', $tenantId)
-            ->orderBy('created_at', 'desc');
-
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        $perPage = min((int) $request->get('per_page', 15), 100);
-        $records = $query->paginate($perPage);
-
-        return response()->json([
-            'success' => true,
-            'data' => $records->items(),
-            'meta' => [
-                'current_page' => $records->currentPage(),
-                'last_page' => $records->lastPage(),
-                'per_page' => $records->perPage(),
-                'total' => $records->total(),
-            ],
-        ]);
-    });
-
-    Route::post('/tenants/{tenantId}/payment-orders', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'description' => 'nullable|string|max:255',
-        ]);
-
-        $record = \MultiTenantSaas\Models\FinancialRecord::create([
-            'tenant_id' => $tenantId,
-            'type' => 'recharge',
-            'amount' => $request->amount,
-            'description' => $request->description ?? '充值',
-        ]);
-
-        return response()->json(['success' => true, 'data' => $record], 201);
-    });
-
-    // ----- 审计日志 -----
-    Route::get('/tenants/{tenantId}/audit-logs', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        $query = AuditLog::where('tenant_id', $tenantId)->orderBy('created_at', 'desc');
-
-        if ($request->filled('action')) {
-            $query->where('action', $request->action);
-        }
-        if ($request->filled('resource_type')) {
-            $query->where('resource_type', $request->resource_type);
-        }
-
-        $perPage = min((int) $request->get('per_page', 15), 100);
-        $logs = $query->paginate($perPage);
-
-        return response()->json([
-            'success' => true,
-            'data' => $logs->items(),
-            'meta' => [
-                'current_page' => $logs->currentPage(),
-                'last_page' => $logs->lastPage(),
-                'per_page' => $logs->perPage(),
-                'total' => $logs->total(),
-            ],
-        ]);
-    });
-
-    // ----- API Token 管理 -----
-    Route::get('/tenants/{tenantId}/api-tokens', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        // 使用 tenant_settings 存储 token 信息
-        $tokens = \MultiTenantSaas\Models\TenantSetting::where('tenant_id', $tenantId)
-            ->where('group', 'api_token')
-            ->get()
-            ->map(function ($s) {
-                $data = json_decode($s->value, true) ?? [];
-                return [
-                    'id' => $s->id,
-                    'name' => $data['name'] ?? $s->key,
-                    'created_at' => $s->created_at,
-                    'last_used_at' => $data['last_used_at'] ?? null,
-                    'expires_at' => $data['expires_at'] ?? null,
-                ];
-            });
-
-        return response()->json(['success' => true, 'data' => $tokens]);
-    });
-
-    Route::post('/tenants/{tenantId}/api-tokens', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $request->validate(['name' => 'required|string|max:255']);
-
-        $plainToken = \Illuminate\Support\Str::random(40);
-        $tokenHash = hash('sha256', $plainToken);
-
-        \MultiTenantSaas\Models\TenantSetting::create([
-            'tenant_id' => $tenantId,
-            'group' => 'api_token',
-            'key' => 'token_' . substr($tokenHash, 0, 8),
-            'value' => json_encode([
-                'name' => $request->name,
-                'token_hash' => $tokenHash,
-                'expires_at' => $request->expires_at,
-            ]),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => ['name' => $request->name, 'token' => $plainToken],
-        ], 201);
-    });
-
-    Route::delete('/tenants/{tenantId}/api-tokens/{tokenId}', function (Request $request, int $tenantId, int $tokenId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        \MultiTenantSaas\Models\TenantSetting::where('tenant_id', $tenantId)
-            ->where('group', 'api_token')
-            ->where('id', $tokenId)
-            ->delete();
-
-        return response()->json(['success' => true, 'message' => 'Token已删除']);
-    });
-
-    // ----- 配额 -----
-    Route::get('/tenants/{tenantId}/quotas', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        $tenant = Tenant::findOrFail($tenantId);
-        $quotas = [
-            ['resource' => 'members', 'label' => '成员数量', 'limit' => 100, 'used' => TenantUser::where('tenant_id', $tenantId)->count()],
-            ['resource' => 'credits', 'label' => '积分余额', 'limit' => $tenant->total_credits, 'used' => $tenant->used_credits],
-            ['resource' => 'storage', 'label' => '存储空间', 'limit' => 10240, 'used' => 0],
-        ];
-        return response()->json(['success' => true, 'data' => $quotas]);
-    });
-
-    // ----- 租户支付配置 -----
-    Route::get('/tenants/{tenantId}/payment/config', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        return response()->json(['success' => true, 'data' => PayService::getPaymentConfig($tenantId)]);
-    });
-
-    Route::put('/tenants/{tenantId}/payment/{driver}', function (Request $request, int $tenantId, string $driver) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        if (!in_array($driver, ['wechat', 'alipay'])) {
-            return response()->json(['success' => false, 'message' => '不支持的支付方式'], 400);
-        }
-        PayService::updatePaymentConfig($tenantId, $driver, $request->all());
-        return response()->json(['success' => true, 'message' => '支付配置已更新']);
-    });
-
-    // ----- 租户 OAuth 配置 -----
-    Route::get('/tenants/{tenantId}/oauth/config', function (Request $request, int $tenantId) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        return response()->json(['success' => true, 'data' => SocialiteService::getOAuthConfigForDisplay($tenantId)]);
-    });
-
-    Route::put('/tenants/{tenantId}/oauth/{provider}', function (Request $request, int $tenantId, string $provider) use ($ensureTenantAccess) {
-        if ($error = $ensureTenantAccess($request, $tenantId)) return $error;
-        
-        SocialiteService::updateOAuthConfig($tenantId, $provider, $request->all());
-        return response()->json(['success' => true, 'message' => 'OAuth 配置已更新']);
-    });
-
-    // ----- 系统设置 (super_admin) -----
-    Route::get('/admin/settings', function (Request $request) {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限访问'], 403);
-        }
-        $settings = SystemSetting::all()->groupBy('group');
-        return response()->json(['success' => true, 'data' => $settings]);
-    });
-
-    Route::put('/admin/settings/{group}', function (Request $request, string $group) {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限访问'], 403);
-        }
-
-        $allowedGroups = ['system', 'mail', 'credit', 'dify'];
-        if (!in_array($group, $allowedGroups)) {
-            return response()->json(['success' => false, 'message' => '未知配置组'], 400);
-        }
-
-        foreach ($request->all() as $key => $value) {
-            SystemSetting::updateOrCreate(
-                ['group' => $group, 'key' => $key],
-                ['value' => $value]
-            );
-        }
-
-        return response()->json(['success' => true, 'message' => '系统设置已更新']);
-    });
-
-    // ----- 第三方登录 -----
-    Route::get('/auth/{provider}/redirect', function (Request $request, string $provider) {
-        $tenantId = $request->attributes->get('tenant_id');
-        $url = SocialiteService::getRedirectUrl($provider, $tenantId);
-        return response()->json(['success' => true, 'data' => ['url' => $url]]);
-    });
-
-    Route::get('/auth/{provider}/callback', function (Request $request, string $provider) {
-        $tenantId = $request->attributes->get('tenant_id');
-        $result = SocialiteService::handleCallback($provider, $tenantId);
-        return response()->json(['success' => true, 'data' => $result]);
-    });
-
-    // ----- 支付回调（无需认证，无需租户检查） -----
-    Route::post('/pay/wechat/notify', function (Request $request) {
-        $result = PayService::handleCallback('wechat', $request);
-        return response('success');
-    });
-
-    Route::post('/pay/alipay/notify', function (Request $request) {
-        $result = PayService::handleCallback('alipay', $request);
-        return response('success');
-    });
+    // 系统设置（仅 super_admin）
+    Route::get('/admin/settings', [AdminSettingsController::class, 'index']);
+    Route::put('/admin/settings/{group}', [AdminSettingsController::class, 'update']);
 });
