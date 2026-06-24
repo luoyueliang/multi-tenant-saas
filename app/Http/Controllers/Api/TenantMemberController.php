@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesTenantAccess;
+use App\Http\Resources\TenantUserResource;
 use Illuminate\Http\Request;
 use MultiTenantSaas\Models\TenantUser;
 
@@ -23,7 +24,7 @@ class TenantMemberController extends Controller
             )
             ->get();
 
-        return response()->json(['success' => true, 'data' => $members]);
+        return response()->json(['success' => true, 'data' => TenantUserResource::collection($members)]);
     }
 
     public function store(Request $request, int $tenantId)

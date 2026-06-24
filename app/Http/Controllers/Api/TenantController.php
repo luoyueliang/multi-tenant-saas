@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TenantResource;
 use Illuminate\Http\Request;
 use MultiTenantSaas\Models\Tenant;
 
@@ -18,7 +19,7 @@ class TenantController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $tenants->items(),
+            'data' => TenantResource::collection($tenants),
             'meta' => [
                 'current_page' => $tenants->currentPage(),
                 'last_page' => $tenants->lastPage(),
@@ -36,7 +37,7 @@ class TenantController extends Controller
 
         $tenant = Tenant::findOrFail($tenantId);
 
-        return response()->json(['success' => true, 'data' => $tenant]);
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant)]);
     }
 
     public function update(Request $request, int $tenantId)
@@ -51,7 +52,7 @@ class TenantController extends Controller
             'description', 'contact_name', 'contact_email', 'contact_phone',
         ]));
 
-        return response()->json(['success' => true, 'data' => $tenant]);
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant)]);
     }
 
     public function destroy(Request $request, int $tenantId)

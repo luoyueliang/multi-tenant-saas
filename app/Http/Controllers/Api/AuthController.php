@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Validation\Rules\Password;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use MultiTenantSaas\Models\User;
+use Illuminate\Validation\Rules\Password;
 use MultiTenantSaas\Models\TenantUser;
+use MultiTenantSaas\Models\User;
 
 class AuthController extends Controller
 {
@@ -38,12 +37,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => [
-                    'user_id' => $user->user_id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ],
+                'user' => new UserResource($user),
                 'tenant_id' => $tenantUser?->tenant_id,
                 'token' => $token,
             ],
@@ -82,12 +76,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => [
-                    'user_id' => $user->user_id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ],
+                'user' => new UserResource($user),
                 'tenant_id' => $tenantId,
                 'token' => $token,
             ],
@@ -171,12 +160,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => [
-                    'user_id' => $user->user_id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ],
+                'user' => new UserResource($user),
                 'tenant_id' => $tenantUser?->tenant_id,
             ],
         ]);
@@ -186,9 +170,6 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => '已退出登录',
-        ]);
+        return response()->json(['success' => true, 'message' => '已退出登录']);
     }
 }
