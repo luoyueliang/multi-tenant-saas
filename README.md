@@ -310,16 +310,16 @@ Route::middleware(['tenant.permission:tenant_admin'])->group(function () {
 ### 查询数据
 
 ```php
-// 自动按租户过滤
+// 自动按租户过滤（模型需使用 BelongsToTenant Trait）
 $orders = Order::all();
 
-// 跨租户查询（Super Admin）
+// 跨租户查询（仅 admin 域名下可用）
 $allOrders = Order::withoutTenantScope()->get();
 
-// 指定租户查询
+// 指定租户查询（仅 admin 域名下可用）
 $tenantOrders = Order::withTenant('1234567890123456')->get();
 
-// 查询所有租户数据
+// 查询所有租户数据（仅 admin 域名下可用）
 $allOrders = Order::forAllTenants()->get();
 ```
 

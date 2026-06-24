@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\AuthorizesTenantAccess;
 use Illuminate\Http\Request;
 use MultiTenantSaas\Models\SystemSetting;
 use MultiTenantSaas\Models\TenantSetting;
+use MultiTenantSaas\Services\AuditService;
 use MultiTenantSaas\Services\SmsService;
 
 class TenantSettingController extends Controller
@@ -67,8 +68,17 @@ class TenantSettingController extends Controller
         ];
 
         $keys = $allowedKeys[$group] ?? [];
+        $changes = [];
         foreach ($request->only($keys) as $key => $value) {
+            $oldValue = TenantSetting::get($tenantId, $group, $key);
             TenantSetting::set($tenantId, $group, $key, $value);
+            if ($oldValue !== $value) {
+                $changes[$key] = ['old' => $oldValue, 'new' => $value];
+            }
+        }
+
+        if (!empty($changes)) {
+            AuditService::log('update', 'tenant_settings', $tenantId, null, ['group' => $group, 'changes' => $changes]);
         }
 
         return response()->json(['success' => true, 'message' => '配置已更新']);

@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\AuthorizesTenantAccess;
 use App\Http\Resources\TenantUserResource;
 use Illuminate\Http\Request;
 use MultiTenantSaas\Models\TenantUser;
+use MultiTenantSaas\Services\AuditService;
 
 class TenantMemberController extends Controller
 {
@@ -41,6 +42,11 @@ class TenantMemberController extends Controller
             ['role' => $request->role ?? 'end_user', 'is_active' => true, 'joined_at' => now()]
         );
 
+        AuditService::log('create', 'tenant_user', $request->user_id, null, [
+            'tenant_id' => $tenantId,
+            'role' => $request->role ?? 'end_user',
+        ]);
+
         return response()->json(['success' => true, 'message' => '成员已添加']);
     }
 
@@ -52,7 +58,11 @@ class TenantMemberController extends Controller
             ->where('user_id', $userId)
             ->firstOrFail();
 
+        $oldValues = ['role' => $member->role, 'is_active' => $member->is_active];
         $member->update($request->only(['role', 'is_active']));
+        $newValues = $request->only(['role', 'is_active']);
+
+        AuditService::log('update', 'tenant_user', $userId, $oldValues, $newValues);
 
         return response()->json(['success' => true, 'message' => '已更新']);
     }

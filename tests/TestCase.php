@@ -152,6 +152,24 @@ abstract class TestCase extends BaseTestCase
             $table->index('tenant_id');
             $table->index('credit_account_id');
         });
+
+        Schema::create('audit_logs', function (Blueprint $table) {
+            $table->bigInteger('log_id')->unsigned()->primary();
+            $table->bigInteger('tenant_id')->unsigned()->nullable();
+            $table->bigInteger('user_id')->unsigned()->nullable();
+            $table->string('action', 50);
+            $table->string('resource_type', 50);
+            $table->bigInteger('resource_id')->unsigned()->nullable();
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
+            $table->string('ip_address', 45)->nullable();
+            $table->string('user_agent', 500)->nullable();
+            $table->timestamps();
+
+            $table->index('tenant_id');
+            $table->index('user_id');
+            $table->index(['resource_type', 'resource_id']);
+        });
     }
 
     protected function seedTenants(): void
