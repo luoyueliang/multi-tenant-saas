@@ -20,4 +20,5 @@ return [
     'role_deleted' => 'Role deleted',
     'system_role_protected' => 'System role cannot be modified',
     'system_role_no_delete' => 'System role cannot be deleted',
+    'resumed' => 'Tenant resumed',
 ];

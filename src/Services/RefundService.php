@@ -144,6 +144,82 @@ class RefundService
     }
 
     /**
+     * 查询退款状态
+     *
+     * @param int $tenantId
+     * @param string $orderNo 原订单号
+     * @return array 退款状态信息
+     */
+    public static function queryRefundStatus(int $tenantId, string $orderNo): array
+    {
+        $order = PaymentOrder::where('tenant_id', $tenantId)
+            ->where('order_no', $orderNo)
+            ->first();
+
+        if (!$order) {
+            throw new \RuntimeException(trans('payment.order_not_found'));
+        }
+
+        $extra = $order->extra ?? [];
+        $refundNo = $extra['refund_no'] ?? null;
+
+        if (!$refundNo) {
+            return [
+                'order_no' => $orderNo,
+                'status' => $order->status,
+                'has_refund' => false,
+                'message' => '该订单无退款记录',
+            ];
+        }
+
+        // 尝试从支付网关查询最新状态
+        $driver = $order->driver;
+        $gatewayStatus = null;
+
+        try {
+            $pay = PayService::createPayInstancePublic($tenantId, $driver);
+
+            if ($driver === 'wechat') {
+                $result = $pay->query([
+                    'out_trade_no' => $orderNo,
+                    'out_refund_no' => $refundNo,
+                    'type' => 'refund',
+                ]);
+                $gatewayStatus = $result->toArray();
+            } elseif ($driver === 'alipay') {
+                $result = $pay->query([
+                    'out_trade_no' => $orderNo,
+                    'out_request_no' => $refundNo,
+                ]);
+                $gatewayStatus = $result->toArray();
+            }
+        } catch (\Exception $e) {
+            Log::warning('查询退款状态失败，返回本地状态', [
+                'tenant_id' => $tenantId,
+                'order_no' => $orderNo,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // 查询财务记录
+        $financialRecord = FinancialRecord::where('tenant_id', $tenantId)
+            ->where('payment_order_no', $orderNo)
+            ->where('type', 'refund')
+            ->first();
+
+        return [
+            'order_no' => $orderNo,
+            'refund_no' => $refundNo,
+            'status' => $order->status,
+            'refund_amount' => $extra['refund_amount'] ?? null,
+            'refund_reason' => $extra['refund_reason'] ?? null,
+            'refunded_at' => $extra['refunded_at'] ?? null,
+            'financial_status' => $financialRecord?->status,
+            'gateway_response' => $gatewayStatus,
+        ];
+    }
+
+    /**
      * 处理退款回调
      */
     public static function handleRefundCallback(string $driver, Request $request): array

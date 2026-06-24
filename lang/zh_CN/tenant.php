@@ -20,4 +20,5 @@ return [
     'role_deleted' => '角色已删除',
     'system_role_protected' => '系统内置角色不可修改',
     'system_role_no_delete' => '系统内置角色不可删除',
+    'resumed' => '租户已恢复',
 ];

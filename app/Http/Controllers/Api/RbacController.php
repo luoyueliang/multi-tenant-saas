@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 use MultiTenantSaas\Services\RbacService;
 use MultiTenantSaas\Services\AuditService;
 
+/**
+ * @OA\Tag(
+ *     name="RBAC权限",
+ *     description="角色、权限管理和成员角色分配"
+ * )
+ */
 class RbacController extends Controller
 {
     /**
@@ -71,7 +77,7 @@ class RbacController extends Controller
 
         AuditService::log('update', 'role', $roleId, '更新角色权限');
 
-        return response()->json(['message' => '角色权限已更新']);
+        return response()->json(['message' => trans("tenant.role_updated")]);
     }
 
     /**
@@ -87,7 +93,7 @@ class RbacController extends Controller
 
         AuditService::log('delete', 'role', $roleId, '删除角色');
 
-        return response()->json(['message' => '角色已删除']);
+        return response()->json(['message' => trans("tenant.role_deleted")]);
     }
 
     /**
@@ -106,6 +112,6 @@ class RbacController extends Controller
 
         AuditService::log('update', 'tenant_member', $userId, "分配角色ID: {$validated['role_id']}");
 
-        return response()->json(['message' => '角色已分配']);
+        return response()->json(['message' => trans("tenant.role_assigned")]);
     }
 }

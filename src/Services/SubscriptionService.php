@@ -4,6 +4,7 @@ namespace MultiTenantSaas\Services;
 
 use MultiTenantSaas\Models\Tenant;
 use MultiTenantSaas\Models\SubscriptionPlan;
+use MultiTenantSaas\Models\SubscriptionHistory;
 use MultiTenantSaas\Models\FinancialRecord;
 use MultiTenantSaas\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +22,12 @@ class SubscriptionService
         $plan = SubscriptionPlan::findOrFail($planId);
 
         if (!$plan->is_active) {
-            throw new \RuntimeException('该订阅计划不可用');
+            throw new \RuntimeException(trans('subscription.plan_not_available'));
         }
 
         $now = now();
+        $fromPlan = $tenant->subscription_plan;
+        $expiresAt = null;
 
         if ($startTrial && $plan->hasTrial()) {
             $tenant->subscription_plan = $plan->name;
@@ -33,6 +36,12 @@ class SubscriptionService
             $tenant->trial_ends_at = $now->copy()->addDays($plan->trial_days);
             $tenant->subscription_expires_at = $tenant->trial_ends_at;
             $tenant->auto_renew = false;
+            $expiresAt = $tenant->trial_ends_at;
+
+            SubscriptionHistory::record(
+                $tenant->tenant_id, 'trial', $fromPlan, $plan->name, $billingCycle,
+                0, 0, $now, $expiresAt, '试用开始'
+            );
         } else {
             $expiresAt = $billingCycle === 'yearly'
                 ? $now->copy()->addYear()
@@ -44,6 +53,13 @@ class SubscriptionService
             $tenant->subscription_expires_at = $expiresAt;
             $tenant->trial_ends_at = null;
             $tenant->auto_renew = true;
+
+            $amount = $billingCycle === 'yearly' ? $plan->price_yearly : $plan->price_monthly;
+
+            SubscriptionHistory::record(
+                $tenant->tenant_id, 'subscribe', $fromPlan, $plan->name, $billingCycle,
+                $amount, 0, $now, $expiresAt, '订阅成功'
+            );
         }
 
         $tenant->save();
@@ -57,18 +73,112 @@ class SubscriptionService
     public static function cancel(int $tenantId): Tenant
     {
         $tenant = Tenant::findOrFail($tenantId);
+        $fromPlan = $tenant->subscription_plan;
         $tenant->auto_renew = false;
         $tenant->save();
+
+        SubscriptionHistory::record(
+            $tenant->tenant_id, 'cancel', $fromPlan, $fromPlan, null,
+            0, 0, null, $tenant->subscription_expires_at,
+            '取消自动续费，到期后降级为免费版'
+        );
 
         return $tenant;
     }
 
     /**
-     * 变更计划
+     * 变更计划（支持按比例计算退补金额）
      */
     public static function changePlan(int $tenantId, int $newPlanId, string $billingCycle = 'monthly'): Tenant
     {
-        return static::subscribe($tenantId, $newPlanId, $billingCycle, false);
+        $tenant = Tenant::findOrFail($tenantId);
+        $newPlan = SubscriptionPlan::findOrFail($newPlanId);
+        $oldPlan = static::getCurrentPlan($tenantId);
+
+        if (!$newPlan->is_active) {
+            throw new \RuntimeException(trans('subscription.plan_not_available'));
+        }
+
+        // 计算按比例退补金额
+        $proration = static::calculateProration($tenant, $oldPlan, $newPlan, $billingCycle);
+
+        // 执行订阅变更
+        $tenant = static::subscribe($tenantId, $newPlanId, $billingCycle, false);
+
+        // 记录计划变更历史
+        $action = $newPlan->price_monthly > ($oldPlan?->price_monthly ?? 0) ? 'upgrade' : 'downgrade';
+
+        SubscriptionHistory::record(
+            $tenant->tenant_id, $action,
+            $oldPlan?->name, $newPlan->name, $billingCycle,
+            $billingCycle === 'yearly' ? $newPlan->price_yearly : $newPlan->price_monthly,
+            $proration,
+            now(), $tenant->subscription_expires_at,
+            "计划从 {$oldPlan?->name} 变更为 {$newPlan->name}",
+            ['proration' => $proration]
+        );
+
+        return $tenant;
+    }
+
+    /**
+     * 按比例计算退补金额
+     * 场景：用户在当前计费周期中途变更计划
+     * - 升级：需补差价 = (新计划日费用 - 旧计划日费用) × 剩余天数
+     * - 降级：退差价 = (旧计划日费用 - 新计划日费用) × 剩余天数
+     */
+    public static function calculateProration(
+        Tenant $tenant,
+        ?SubscriptionPlan $oldPlan,
+        SubscriptionPlan $newPlan,
+        string $billingCycle = 'monthly'
+    ): float {
+        if (!$oldPlan || $oldPlan->id === $newPlan->id) {
+            return 0;
+        }
+
+        // 如果当前没有有效订阅或已过期，无需按比例计算
+        if (!$tenant->subscription_expires_at || $tenant->subscription_expires_at->isPast()) {
+            return 0;
+        }
+
+        $now = now();
+        $expiresAt = $tenant->subscription_expires_at;
+
+        // 计算剩余天数
+        $remainingDays = $now->diffInDays($expiresAt);
+        if ($remainingDays <= 0) {
+            return 0;
+        }
+
+        // 计算当前计费周期总天数
+        $startedAt = $tenant->subscription_started_at ?? $now->copy()->subMonth();
+        $totalDays = $startedAt->diffInDays($expiresAt);
+        if ($totalDays <= 0) {
+            $totalDays = 30;
+        }
+
+        // 日费用
+        $oldPrice = $billingCycle === 'yearly' ? ($oldPlan->price_yearly ?: 0) : ($oldPlan->price_monthly ?: 0);
+        $newPrice = $billingCycle === 'yearly' ? ($newPlan->price_yearly ?: 0) : ($newPlan->price_monthly ?: 0);
+
+        $oldDailyRate = $oldPrice / $totalDays;
+        $newDailyRate = $newPrice / $totalDays;
+
+        // 按比例退补
+        $proration = ($newDailyRate - $oldDailyRate) * $remainingDays;
+
+        return round($proration, 2);
+    }
+
+    /**
+     * 获取订阅历史
+     */
+    public static function getHistory(int $tenantId, int $perPage = 15)
+    {
+        return SubscriptionHistory::where('tenant_id', $tenantId)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
     }
 
     /**
@@ -86,7 +196,6 @@ class SubscriptionService
     {
         $tenant = Tenant::find($tenantId);
         if (!$tenant || !$tenant->subscription_plan_id) {
-            // 回退到字符串匹配
             if ($tenant && $tenant->subscription_plan) {
                 return SubscriptionPlan::where('name', $tenant->subscription_plan)->first();
             }
@@ -150,20 +259,24 @@ class SubscriptionService
 
         foreach ($tenants as $tenant) {
             if ($tenant->auto_renew) {
-                // 自动续费逻辑（需对接支付）
                 $this->autoRenew($tenant);
             } else {
-                // 降级为免费版
+                $fromPlan = $tenant->subscription_plan;
                 $tenant->subscription_plan = 'free';
                 $tenant->subscription_plan_id = $freePlan?->id;
                 $tenant->auto_renew = false;
                 $tenant->trial_ends_at = null;
                 $tenant->save();
 
+                SubscriptionHistory::record(
+                    $tenant->tenant_id, 'downgrade', $fromPlan, 'free', null,
+                    0, 0, now(), null, '订阅过期，降级为免费版'
+                );
+
                 NotificationService::sendToTenantAdmins(
                     $tenant->tenant_id,
-                    '订阅已过期',
-                    "您的订阅已过期，已降级为免费版。如需恢复，请续费。",
+                    trans('notification.subscription_expiring_title'),
+                    trans('subscription.expired_downgraded'),
                     'warning',
                     url('/console/subscription')
                 );
@@ -187,7 +300,6 @@ class SubscriptionService
         }
 
         try {
-            // 创建续费订单
             $orderNo = 'SUB-' . date('Ymd') . '-' . str_pad($tenant->tenant_id, 6, '0', STR_PAD_LEFT);
 
             $record = FinancialRecord::create([
@@ -204,13 +316,21 @@ class SubscriptionService
             ]);
 
             // TODO: 调用 PayService 发起自动扣款
-            // 这里仅创建订单记录，实际扣款逻辑需要对接支付网关
-
             Log::info("自动续费订单已创建", [
                 'tenant_id' => $tenant->tenant_id,
                 'order_no' => $orderNo,
                 'amount' => $plan->price_monthly,
             ]);
+
+            // 续费成功，延长订阅期
+            $tenant->subscription_expires_at = now()->copy()->addMonth();
+            $tenant->save();
+
+            SubscriptionHistory::record(
+                $tenant->tenant_id, 'renew', $plan->name, $plan->name, 'monthly',
+                $plan->price_monthly, 0, now(), $tenant->subscription_expires_at,
+                '自动续费成功'
+            );
 
         } catch (\Exception $e) {
             Log::error("自动续费失败", [
@@ -218,15 +338,20 @@ class SubscriptionService
                 'error' => $e->getMessage(),
             ]);
 
-            // 续费失败，降级
+            $fromPlan = $tenant->subscription_plan;
             $tenant->subscription_plan = 'free';
             $tenant->auto_renew = false;
             $tenant->save();
 
+            SubscriptionHistory::record(
+                $tenant->tenant_id, 'downgrade', $fromPlan, 'free', null,
+                0, 0, now(), null, '自动续费失败，降级为免费版'
+            );
+
             NotificationService::sendToTenantAdmins(
                 $tenant->tenant_id,
-                '自动续费失败',
-                "自动续费扣款失败，已降级为免费版。请手动续费。",
+                trans('subscription.auto_renew_failed'),
+                trans('subscription.auto_renew_failed'),
                 'error',
                 url('/console/subscription')
             );

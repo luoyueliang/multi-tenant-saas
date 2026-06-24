@@ -23,7 +23,7 @@ class TenantOAuthController extends Controller
 
         $allowed = ['enabled', 'client_id', 'client_secret', 'redirect'];
         SocialiteService::updateOAuthConfig($tenantId, $provider, $request->only($allowed));
-        return response()->json(['success' => true, 'message' => 'OAuth 配置已更新']);
+        return response()->json(['success' => true, 'message' => trans("common.updated")]);
     }
 
     public function redirect(Request $request, string $provider)

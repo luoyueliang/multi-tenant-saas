@@ -25,7 +25,7 @@ class TenantPaymentController extends Controller
         $this->ensureTenantAccess($request, $tenantId);
 
         if (!in_array($driver, ['wechat', 'alipay'])) {
-            return response()->json(['success' => false, 'message' => '不支持的支付方式'], 400);
+            return response()->json(['success' => false, 'message' => trans("payment.unsupported_driver")], 400);
         }
 
         $allowed = $driver === 'wechat'
@@ -39,7 +39,7 @@ class TenantPaymentController extends Controller
             'fields' => $allowed,
         ]);
 
-        return response()->json(['success' => true, 'message' => '支付配置已更新']);
+        return response()->json(['success' => true, 'message' => trans("payment.config_updated")]);
     }
 
     public function wechatNotify(Request $request)
@@ -169,6 +169,32 @@ class TenantPaymentController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 422);
+        }
+    }
+
+    /**
+     * 查询退款状态
+     */
+    public function refundStatus(Request $request, int $tenantId)
+    {
+        $this->ensureTenantAccess($request, $tenantId);
+
+        $request->validate([
+            'order_no' => 'required|string',
+        ]);
+
+        try {
+            $result = RefundService::queryRefundStatus($tenantId, $request->input('order_no'));
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
         }
     }
 

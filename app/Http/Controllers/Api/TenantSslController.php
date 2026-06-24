@@ -33,7 +33,7 @@ class TenantSslController extends Controller
         $service = new TenantSslService();
         $service->storeCertificate($tenant, $request->certificate, $request->private_key);
 
-        return response()->json(['success' => true, 'message' => 'SSL证书已上传']);
+        return response()->json(['success' => true, 'message' => trans("common.created")]);
     }
 
     public function destroy(Request $request, int $tenantId)
@@ -44,7 +44,7 @@ class TenantSslController extends Controller
         $service = new TenantSslService();
         $service->removeCertificate($tenant);
 
-        return response()->json(['success' => true, 'message' => 'SSL证书已删除']);
+        return response()->json(['success' => true, 'message' => trans("common.deleted")]);
     }
 
 }

@@ -6,7 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use MultiTenantSaas\Services\NotificationService;
 use MultiTenantSaas\Services\AuditService;
+use MultiTenantSaas\Models\NotificationPreference;
 
+/**
+ * @OA\Tag(
+ *     name="通知中心",
+ *     description="通知列表、已读管理和通知偏好设置"
+ * )
+ */
 class NotificationController extends Controller
 {
     /**
@@ -55,12 +62,12 @@ class NotificationController extends Controller
         $notification = $request->user()->notifications()->where('id', $id)->first();
 
         if (!$notification) {
-            return response()->json(['message' => '通知不存在'], 404);
+            return response()->json(['message' => trans("notification.not_found")], 404);
         }
 
         $notification->markAsRead();
 
-        return response()->json(['message' => '已标记为已读']);
+        return response()->json(['message' => trans("notification.marked_read")]);
     }
 
     /**
@@ -72,7 +79,7 @@ class NotificationController extends Controller
 
         AuditService::log('update', 'notification', null, '批量标记通知为已读');
 
-        return response()->json(['message' => '全部已标记为已读']);
+        return response()->json(['message' => trans("notification.all_marked_read")]);
     }
 
     /**
@@ -83,12 +90,12 @@ class NotificationController extends Controller
         $notification = $request->user()->notifications()->where('id', $id)->first();
 
         if (!$notification) {
-            return response()->json(['message' => '通知不存在'], 404);
+            return response()->json(['message' => trans("notification.not_found")], 404);
         }
 
         $notification->delete();
 
-        return response()->json(['message' => '通知已删除']);
+        return response()->json(['message' => trans("notification.deleted")]);
     }
 
     /**
@@ -98,6 +105,77 @@ class NotificationController extends Controller
     {
         $request->user()->notifications()->whereNotNull('read_at')->delete();
 
-        return response()->json(['message' => '已清空已读通知']);
+        return response()->json(['message' => trans("notification.read_cleared")]);
+    }
+
+    /**
+     * 获取通知偏好设置
+     */
+    public function getPreferences(Request $request)
+    {
+        $userId = $request->user()->id;
+        $preferences = NotificationPreference::getUserPreferences($userId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $preferences,
+            'channels' => NotificationPreference::CHANNELS,
+            'types' => NotificationPreference::TYPES,
+        ]);
+    }
+
+    /**
+     * 更新通知偏好设置
+     */
+    public function updatePreferences(Request $request)
+    {
+        $request->validate([
+            'channel' => 'required|in:' . implode(',', NotificationPreference::CHANNELS),
+            'type' => 'nullable|in:' . implode(',', NotificationPreference::TYPES),
+            'enabled' => 'required|boolean',
+        ]);
+
+        $userId = $request->user()->id;
+        NotificationPreference::setPreference(
+            $userId,
+            $request->channel,
+            $request->type,
+            $request->boolean('enabled')
+        );
+
+        AuditService::log('update', 'notification_preference', $userId, null, $request->only(['channel', 'type', 'enabled']));
+
+        return response()->json([
+            'success' => true,
+            'message' => trans('common.updated'),
+        ]);
+    }
+
+    /**
+     * 批量更新通知偏好
+     */
+    public function batchUpdatePreferences(Request $request)
+    {
+        $request->validate([
+            'preferences' => 'required|array',
+            'preferences.*.channel' => 'required|in:' . implode(',', NotificationPreference::CHANNELS),
+            'preferences.*.type' => 'nullable|in:' . implode(',', NotificationPreference::TYPES),
+            'preferences.*.enabled' => 'required|boolean',
+        ]);
+
+        $userId = $request->user()->id;
+        foreach ($request->preferences as $pref) {
+            NotificationPreference::setPreference(
+                $userId,
+                $pref['channel'],
+                $pref['type'] ?? null,
+                $pref['enabled']
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => trans('common.updated'),
+        ]);
     }
 }

@@ -48,12 +48,12 @@ class TenantSettingController extends Controller
                     ['value' => $value]
                 );
             }
-            return response()->json(['success' => true, 'message' => '短信配置已更新']);
+            return response()->json(['success' => true, 'message' => trans("common.updated")]);
         }
 
         $allowedGroups = ['info', 'oauth', 'auth', 'mail', 'registration'];
         if (!in_array($group, $allowedGroups)) {
-            return response()->json(['success' => false, 'message' => '未知配置组'], 400);
+            return response()->json(['success' => false, 'message' => trans("common.not_found")], 400);
         }
 
         // 白名单：每个配置组只允许特定 key
@@ -81,7 +81,7 @@ class TenantSettingController extends Controller
             AuditService::log('update', 'tenant_settings', $tenantId, null, ['group' => $group, 'changes' => $changes]);
         }
 
-        return response()->json(['success' => true, 'message' => '配置已更新']);
+        return response()->json(['success' => true, 'message' => trans("common.updated")]);
     }
 
     public function testSms(Request $request, int $tenantId)
@@ -93,9 +93,9 @@ class TenantSettingController extends Controller
         $result = SmsService::send($request->phone, $code, 'test');
 
         if ($result) {
-            return response()->json(['success' => true, 'message' => '测试短信已发送']);
+            return response()->json(['success' => true, 'message' => trans("common.success")]);
         }
 
-        return response()->json(['success' => false, 'message' => '短信发送失败'], 500);
+        return response()->json(['success' => false, 'message' => trans("common.failed")], 500);
     }
 }

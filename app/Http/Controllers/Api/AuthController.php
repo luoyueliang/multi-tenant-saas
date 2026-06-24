@@ -60,11 +60,11 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !password_verify($request->password, $user->password)) {
-            return response()->json(['success' => false, 'message' => '邮箱或密码错误'], 401);
+            return response()->json(['success' => false, 'message' => trans("auth.login_failed")], 401);
         }
 
         if (!$user->is_active) {
-            return response()->json(['success' => false, 'message' => '账号已被禁用'], 403);
+            return response()->json(['success' => false, 'message' => trans("auth.account_suspended")], 403);
         }
 
         $token = $user->createToken('admin-token')->plainTextToken;
@@ -127,7 +127,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => '注册成功，请查收邮箱完成验证',
+            'message' => trans("auth.register_success"),
             'data' => [
                 'user' => new UserResource($user),
                 'tenant_id' => $tenantId,
@@ -148,17 +148,17 @@ class AuthController extends Controller
             ->first();
 
         if (!$record || !hash_equals($record->token, hash('sha256', $request->token))) {
-            return response()->json(['success' => false, 'message' => '验证链接无效'], 400);
+            return response()->json(['success' => false, 'message' => trans("auth.verification_invalid")], 400);
         }
 
         if (now()->diffInHours($record->created_at) > 24) {
             DB::table('email_verification_tokens')->where('email', $request->email)->delete();
-            return response()->json(['success' => false, 'message' => '验证链接已过期，请重新申请'], 400);
+            return response()->json(['success' => false, 'message' => trans("auth.verification_expired")], 400);
         }
 
         $user = User::where('email', $request->email)->first();
         if (!$user) {
-            return response()->json(['success' => false, 'message' => '用户不存在'], 404);
+            return response()->json(['success' => false, 'message' => trans("common.not_found")], 404);
         }
 
         $user->email_verified_at = now();
@@ -168,7 +168,7 @@ class AuthController extends Controller
 
         AuditService::log('verify_email', 'auth', $user->user_id);
 
-        return response()->json(['success' => true, 'message' => '邮箱验证成功']);
+        return response()->json(['success' => true, 'message' => trans("auth.email_verified")]);
     }
 
     public function resendVerification(Request $request)
@@ -178,16 +178,16 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
-            return response()->json(['success' => true, 'message' => '如果该邮箱已注册，您将收到验证邮件']);
+            return response()->json(['success' => true, 'message' => trans("auth.verification_sent")]);
         }
 
         if ($user->email_verified_at) {
-            return response()->json(['success' => false, 'message' => '该邮箱已验证'], 400);
+            return response()->json(['success' => false, 'message' => trans("auth.email_already_verified")], 400);
         }
 
         $this->sendEmailVerification($user);
 
-        return response()->json(['success' => true, 'message' => '验证邮件已发送']);
+        return response()->json(['success' => true, 'message' => trans("auth.verification_sent")]);
     }
 
     public function forgotPassword(Request $request)
@@ -213,7 +213,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => '如果该邮箱已注册，您将收到重置密码邮件',
+            'message' => trans("auth.password_reset_sent"),
         ]);
     }
 
@@ -230,7 +230,7 @@ class AuthController extends Controller
             ->first();
 
         if (!$resetRecord || !hash_equals($resetRecord->token, hash('sha256', $request->token))) {
-            return response()->json(['success' => false, 'message' => '重置链接无效或已过期'], 400);
+            return response()->json(['success' => false, 'message' => trans("auth.token_invalid")], 400);
         }
 
         if (now()->diffInMinutes($resetRecord->created_at) > 60) {
@@ -243,7 +243,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
-            return response()->json(['success' => false, 'message' => '用户不存在'], 404);
+            return response()->json(['success' => false, 'message' => trans("common.not_found")], 404);
         }
 
         $user->password = bcrypt($request->password);
@@ -260,7 +260,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => '密码已重置，请重新登录',
+            'message' => trans("auth.password_reset_success"),
         ]);
     }
 
@@ -287,7 +287,7 @@ class AuthController extends Controller
 
         AuditService::log('logout', 'auth', $request->user()->user_id);
 
-        return response()->json(['success' => true, 'message' => '已退出登录']);
+        return response()->json(['success' => true, 'message' => trans("auth.logout_success")]);
     }
 
     /**

@@ -67,7 +67,7 @@ class TenantTokenController extends Controller
             ->where('id', $tokenId)
             ->delete();
 
-        return response()->json(['success' => true, 'message' => 'Token已删除']);
+        return response()->json(['success' => true, 'message' => trans("common.deleted")]);
     }
 
 }

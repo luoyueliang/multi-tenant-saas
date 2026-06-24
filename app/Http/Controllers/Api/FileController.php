@@ -8,6 +8,12 @@ use MultiTenantSaas\Services\FileService;
 use MultiTenantSaas\Services\AuditService;
 use MultiTenantSaas\Models\FileUpload;
 
+/**
+ * @OA\Tag(
+ *     name="文件存储",
+ *     description="文件上传、下载、预览、分享和配额管理"
+ * )
+ */
 class FileController extends Controller
 {
     /**
@@ -42,11 +48,54 @@ class FileController extends Controller
         return response()->json([
             'data' => $file,
             'url' => FileService::getUrl($file),
+            'preview_url' => FileService::getPreviewUrl($file),
         ]);
     }
 
     /**
+     * 图片预览（直接返回图片内容）
+     */
+    public function preview(Request $request, int $id)
+    {
+        $file = FileUpload::findOrFail($id);
+
+        if (!$file->isImage()) {
+            return response()->json(['message' => trans('file.type_not_supported')], 422);
+        }
+
+        try {
+            return FileService::download($file)
+                ->header('Content-Type', $file->mime_type)
+                ->header('Content-Disposition', 'inline; filename="' . $file->filename . '"');
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
+    }
+
+    /**
      * 上传文件
+     */
+    /**
+     * @OA\Post(
+     *     path="/v1/files",
+     *     summary="上传文件",
+     *     tags={"文件存储"},
+     *     security={{"sanctum":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="file", type="string", format="binary", description="文件"),
+     *                 @OA\Property(property="category", type="string", description="文件分类"),
+     *                 @OA\Property(property="is_public", type="boolean", description="是否公开"),
+     *                 @OA\Property(property="tenant_id", type="integer", description="租户ID")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="上传成功"),
+     *     @OA\Response(response=422, description="文件大小/类型不符")
+     * )
      */
     public function store(Request $request)
     {
@@ -74,7 +123,7 @@ class FileController extends Controller
             ]);
 
             return response()->json([
-                'message' => '文件上传成功',
+                'message' => trans("file.upload_success"),
                 'data' => $file,
                 'url' => FileService::getUrl($file),
             ], 201);
@@ -111,7 +160,55 @@ class FileController extends Controller
 
         FileService::delete($file);
 
-        return response()->json(['message' => '文件已删除']);
+        return response()->json(['message' => trans("file.deleted")]);
+    }
+
+    /**
+     * 生成文件分享链接
+     */
+    public function share(Request $request, int $id)
+    {
+        $file = FileUpload::findOrFail($id);
+
+        $request->validate([
+            'expires_in' => 'nullable|integer|min:1|max:10080', // 最多 7 天
+        ]);
+
+        $expiresIn = (int) $request->input('expires_in', 60);
+        $shareUrl = FileService::createShareUrl($file, $expiresIn);
+
+        AuditService::log('share', 'file', $id, null, [
+            'expires_in' => $expiresIn,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'share_url' => $shareUrl,
+                'expires_in_minutes' => $expiresIn,
+            ],
+        ]);
+    }
+
+    /**
+     * 通过分享链接下载文件（无需认证）
+     */
+    public function shareDownload(Request $request, int $id)
+    {
+        $token = $request->query('token', '');
+        $signature = $request->query('sig', '');
+
+        if (!FileService::verifyShareUrl($id, $token, $signature)) {
+            return response()->json(['message' => trans('common.token_invalid')], 403);
+        }
+
+        $file = FileUpload::findOrFail($id);
+
+        try {
+            return FileService::download($file);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
     }
 
     /**
@@ -121,15 +218,11 @@ class FileController extends Controller
     {
         $tenantId = $request->input('tenant_id');
 
-        $totalSize = FileService::getStorageUsage($tenantId);
+        $quotaInfo = FileService::getStorageQuotaInfo($tenantId);
         $fileCount = FileUpload::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))->count();
 
         return response()->json([
-            'data' => [
-                'total_size' => $totalSize,
-                'total_size_formatted' => number_format($totalSize / 1024 / 1024, 2) . ' MB',
-                'file_count' => $fileCount,
-            ],
+            'data' => array_merge($quotaInfo, ['file_count' => $fileCount]),
         ]);
     }
 }

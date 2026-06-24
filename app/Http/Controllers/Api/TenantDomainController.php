@@ -27,7 +27,7 @@ class TenantDomainController extends Controller
         $service = new DomainService();
         $service->updateDomain($tenantId, $request->domain);
 
-        return response()->json(['success' => true, 'message' => '域名已更新，等待审核']);
+        return response()->json(['success' => true, 'message' => trans("common.updated")]);
     }
 
     public function approve(Request $request, int $tenantId)
@@ -37,7 +37,7 @@ class TenantDomainController extends Controller
         $service = new DomainService();
         $service->approveDomain($tenantId);
 
-        return response()->json(['success' => true, 'message' => '域名已审核通过']);
+        return response()->json(['success' => true, 'message' => trans("common.success")]);
     }
 
     public function reject(Request $request, int $tenantId)
@@ -47,6 +47,6 @@ class TenantDomainController extends Controller
         $service = new DomainService();
         $service->rejectDomain($tenantId, $request->reason ?? '');
 
-        return response()->json(['success' => true, 'message' => '域名已拒绝']);
+        return response()->json(['success' => true, 'message' => trans("common.success")]);
     }
 }

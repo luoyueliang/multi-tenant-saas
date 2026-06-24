@@ -10,13 +10,31 @@ use MultiTenantSaas\Models\TenantSetting;
 use MultiTenantSaas\Services\AuditService;
 use MultiTenantSaas\Services\IdGenerator;
 use MultiTenantSaas\Services\NotificationService;
+use MultiTenantSaas\Services\RbacService;
 
+/**
+ * @OA\Tag(
+ *     name="租户管理",
+ *     description="租户的创建、查询、更新、暂停和恢复"
+ * )
+ */
 class TenantController extends Controller
 {
+    /**
+     * @OA\Get(
+     *     path="/v1/tenants",
+     *     summary="获取租户列表",
+     *     tags={"租户管理"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Parameter(name="page", in="query", description="页码", @OA\Schema(type="integer", default=1)),
+     *     @OA\Response(response=200, description="租户列表", @OA\JsonContent()),
+     *     @OA\Response(response=403, description="无权限")
+     * )
+     */
     public function index(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $tenants = Tenant::paginate(15);
@@ -35,8 +53,8 @@ class TenantController extends Controller
 
     public function show(Request $request, int $tenantId)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $tenant = Tenant::findOrFail($tenantId);
@@ -47,10 +65,34 @@ class TenantController extends Controller
     /**
      * 创建租户并执行开通流程
      */
+    /**
+     * @OA\Post(
+     *     path="/v1/tenants",
+     *     summary="创建租户并初始化",
+     *     tags={"租户管理"},
+     *     security={{"sanctum":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="application/json",
+     *             @OA\Schema(
+     *                 @OA\Property(property="name", type="string", description="租户名称"),
+     *                 @OA\Property(property="slug", type="string", description="租户标识"),
+     *                 @OA\Property(property="domain", type="string", description="自定义域名"),
+     *                 @OA\Property(property="subscription_plan", type="string", enum={"free","basic","pro","enterprise"}, description="订阅计划"),
+     *                 @OA\Property(property="welcome_credits", type="integer", description="欢迎积分")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="创建成功"),
+     *     @OA\Response(response=403, description="无权限"),
+     *     @OA\Response(response=422, description="参数错误")
+     * )
+     */
     public function store(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $request->validate([
@@ -90,15 +132,15 @@ class TenantController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => '租户已创建并初始化',
+            'message' => trans("tenant.created"),
             'data' => new TenantResource($tenant),
         ], 201);
     }
 
     public function update(Request $request, int $tenantId)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $tenant = Tenant::findOrFail($tenantId);
@@ -118,8 +160,8 @@ class TenantController extends Controller
 
     public function destroy(Request $request, int $tenantId)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $tenant = Tenant::findOrFail($tenantId);
@@ -128,7 +170,7 @@ class TenantController extends Controller
 
         $tenant->delete();
 
-        return response()->json(['success' => true, 'message' => '已删除']);
+        return response()->json(['success' => true, 'message' => trans("common.deleted")]);
     }
 
     /**
@@ -136,8 +178,8 @@ class TenantController extends Controller
      */
     public function suspend(Request $request, int $tenantId)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $request->validate([
@@ -147,7 +189,7 @@ class TenantController extends Controller
         $tenant = Tenant::findOrFail($tenantId);
 
         if ($tenant->status === 'suspended') {
-            return response()->json(['success' => false, 'message' => '租户已处于暂停状态'], 400);
+            return response()->json(['success' => false, 'message' => trans("tenant.already_suspended")], 400);
         }
 
         $oldStatus = $tenant->status;
@@ -171,7 +213,7 @@ class TenantController extends Controller
         // 通知租户所有成员
         NotificationService::notifyTenantSuspended($tenant, $request->reason);
 
-        return response()->json(['success' => true, 'message' => '租户已暂停']);
+        return response()->json(['success' => true, 'message' => trans("tenant.suspended")]);
     }
 
     /**
@@ -179,14 +221,14 @@ class TenantController extends Controller
      */
     public function activate(Request $request, int $tenantId)
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => '无权限'], 403);
+        if (!RbacService::check('tenant.view')) {
+            return response()->json(['success' => false, 'message' => trans("common.no_permission")], 403);
         }
 
         $tenant = Tenant::findOrFail($tenantId);
 
         if ($tenant->status === 'active') {
-            return response()->json(['success' => false, 'message' => '租户已处于活跃状态'], 400);
+            return response()->json(['success' => false, 'message' => trans("tenant.already_active")], 400);
         }
 
         $oldStatus = $tenant->status;
@@ -197,7 +239,7 @@ class TenantController extends Controller
             'status' => 'active',
         ]);
 
-        return response()->json(['success' => true, 'message' => '租户已恢复']);
+        return response()->json(['success' => true, 'message' => trans("tenant.resumed")]);
     }
 
     /**

@@ -9,10 +9,25 @@ use MultiTenantSaas\Models\Tenant;
 use MultiTenantSaas\Services\SubscriptionService;
 use MultiTenantSaas\Services\AuditService;
 
+/**
+ * @OA\Tag(
+ *     name="订阅管理",
+ *     description="订阅计划查询、订阅操作和历史记录"
+ * )
+ */
 class SubscriptionController extends Controller
 {
     /**
      * 获取所有订阅计划
+     */
+    /**
+     * @OA\Get(
+     *     path="/v1/subscription/plans",
+     *     summary="获取所有可用的订阅计划",
+     *     tags={"订阅管理"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Response(response=200, description="计划列表")
+     * )
      */
     public function plans(Request $request)
     {
@@ -99,7 +114,7 @@ class SubscriptionController extends Controller
         $plan = SubscriptionPlan::findOrFail($planId);
 
         if ($plan->name === 'free') {
-            return response()->json(['message' => '免费计划不可删除'], 422);
+            return response()->json(['message' => trans("subscription.plan_not_deletable")], 422);
         }
 
         $plan->delete();
@@ -152,7 +167,7 @@ class SubscriptionController extends Controller
             AuditService::log('subscribe', 'tenant', $tenantId, "订阅计划ID: {$validated['plan_id']}");
 
             return response()->json([
-                'message' => '订阅成功',
+                'message' => trans("subscription.subscribe_success"),
                 'data' => [
                     'plan' => SubscriptionService::getCurrentPlan($tenantId),
                     'subscription_expires_at' => $tenant->subscription_expires_at,
@@ -173,7 +188,7 @@ class SubscriptionController extends Controller
 
         AuditService::log('cancel_subscription', 'tenant', $tenantId, '取消自动续费');
 
-        return response()->json(['message' => '已取消自动续费，到期后将降级为免费版']);
+        return response()->json(['message' => trans("subscription.cancel_success")]);
     }
 
     /**
@@ -196,7 +211,7 @@ class SubscriptionController extends Controller
             AuditService::log('change_plan', 'tenant', $tenantId, "变更到计划ID: {$validated['plan_id']}");
 
             return response()->json([
-                'message' => '计划已变更',
+                'message' => trans("subscription.change_success"),
                 'data' => [
                     'plan' => SubscriptionService::getCurrentPlan($tenantId),
                     'subscription_expires_at' => $tenant->subscription_expires_at,
@@ -205,5 +220,24 @@ class SubscriptionController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * 获取订阅历史
+     */
+    public function history(Request $request, int $tenantId)
+    {
+        $perPage = (int) $request->input('per_page', 15);
+        $history = SubscriptionService::getHistory($tenantId, $perPage);
+
+        return response()->json([
+            'data' => $history->items(),
+            'meta' => [
+                'current_page' => $history->currentPage(),
+                'last_page' => $history->lastPage(),
+                'per_page' => $history->perPage(),
+                'total' => $history->total(),
+            ],
+        ]);
     }
 }

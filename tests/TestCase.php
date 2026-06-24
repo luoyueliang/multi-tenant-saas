@@ -328,6 +328,36 @@ abstract class TestCase extends BaseTestCase
             $table->timestamps();
             $table->softDeletes();
         });
+
+        // 通知偏好
+        Schema::create('notification_preferences', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('channel', 30);
+            $table->string('type', 100)->nullable();
+            $table->boolean('enabled')->default(true);
+            $table->json('options')->nullable();
+            $table->timestamps();
+            $table->unique(['user_id', 'channel', 'type'], 'notif_pref_unique');
+        });
+
+        // 订阅历史
+        Schema::create('subscription_histories', function (Blueprint $table) {
+            $table->id();
+            $table->string('tenant_id', 50)->index();
+            $table->foreignId('plan_id')->nullable();
+            $table->string('action', 30);
+            $table->string('from_plan', 50)->nullable();
+            $table->string('to_plan', 50)->nullable();
+            $table->string('billing_cycle', 20)->nullable();
+            $table->decimal('amount', 10, 2)->default(0);
+            $table->decimal('proration_amount', 10, 2)->default(0);
+            $table->timestamp('starts_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->text('notes')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+        });
     }
 
     protected function seedTenants(): void

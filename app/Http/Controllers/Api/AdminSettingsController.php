@@ -26,7 +26,7 @@ class AdminSettingsController extends Controller
 
         $allowedGroups = ['system', 'mail', 'credit', 'dify'];
         if (!in_array($group, $allowedGroups)) {
-            return response()->json(['success' => false, 'message' => '未知配置组'], 400);
+            return response()->json(['success' => false, 'message' => trans("common.not_found")], 400);
         }
 
         foreach ($request->all() as $key => $value) {

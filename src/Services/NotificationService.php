@@ -9,10 +9,22 @@ use App\Notifications\SubscriptionExpiringNotification;
 use App\Notifications\PaymentSuccessNotification;
 use MultiTenantSaas\Models\User;
 use MultiTenantSaas\Models\Tenant;
+use MultiTenantSaas\Models\NotificationPreference;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Collection;
 
 class NotificationService
 {
+    /**
+     * 根据通知偏好过滤用户集合
+     */
+    protected static function filterByPreference(Collection $users, string $channel, ?string $type = null): Collection
+    {
+        return $users->filter(function (User $user) use ($channel, $type) {
+            return NotificationPreference::isEnabled($user->id, $channel, $type);
+        });
+    }
+
     /**
      * 发送通用通知给指定用户
      */
@@ -24,6 +36,9 @@ class NotificationService
         ?string $actionUrl = null,
         array $extra = []
     ): void {
+        if (!NotificationPreference::isEnabled($user->id, 'database', 'general')) {
+            return;
+        }
         $user->notify(new GeneralNotification($title, $message, $type, $actionUrl, $extra));
     }
 
@@ -43,7 +58,11 @@ class NotificationService
               ->wherePivot('is_active', true);
         })->get();
 
-        Notification::send($users, new GeneralNotification($title, $message, $type, $actionUrl, $extra));
+        $users = static::filterByPreference($users, 'database', 'general');
+
+        if ($users->isNotEmpty()) {
+            Notification::send($users, new GeneralNotification($title, $message, $type, $actionUrl, $extra));
+        }
     }
 
     /**
@@ -63,7 +82,11 @@ class NotificationService
               ->wherePivotIn('role', ['tenant_admin']);
         })->get();
 
-        Notification::send($users, new GeneralNotification($title, $message, $type, $actionUrl, $extra));
+        $users = static::filterByPreference($users, 'database', 'general');
+
+        if ($users->isNotEmpty()) {
+            Notification::send($users, new GeneralNotification($title, $message, $type, $actionUrl, $extra));
+        }
     }
 
     /**
@@ -76,7 +99,11 @@ class NotificationService
               ->wherePivot('is_active', true);
         })->get();
 
-        Notification::send($users, new TenantSuspendedNotification($tenant->name, $reason));
+        $users = static::filterByPreference($users, 'database', 'tenant_suspended');
+
+        if ($users->isNotEmpty()) {
+            Notification::send($users, new TenantSuspendedNotification($tenant->name, $reason));
+        }
     }
 
     /**
@@ -90,7 +117,11 @@ class NotificationService
               ->wherePivotIn('role', ['tenant_admin']);
         })->get();
 
-        Notification::send($admins, new CreditLowNotification($remaining, $threshold));
+        $admins = static::filterByPreference($admins, 'database', 'credit_low');
+
+        if ($admins->isNotEmpty()) {
+            Notification::send($admins, new CreditLowNotification($remaining, $threshold));
+        }
     }
 
     /**
@@ -104,15 +135,19 @@ class NotificationService
               ->wherePivotIn('role', ['tenant_admin']);
         })->get();
 
-        $planName = $tenant->subscription_plan ?? '免费版';
-        $expiresAt = $tenant->subscription_expires_at?->format('Y-m-d H:i:s');
+        $admins = static::filterByPreference($admins, 'database', 'subscription_expiring');
 
-        Notification::send($admins, new SubscriptionExpiringNotification(
-            $tenant->name,
-            $planName,
-            $expiresAt,
-            $daysLeft
-        ));
+        if ($admins->isNotEmpty()) {
+            $planName = $tenant->subscription_plan ?? '免费版';
+            $expiresAt = $tenant->subscription_expires_at?->format('Y-m-d H:i:s');
+
+            Notification::send($admins, new SubscriptionExpiringNotification(
+                $tenant->name,
+                $planName,
+                $expiresAt,
+                $daysLeft
+            ));
+        }
     }
 
     /**
@@ -120,6 +155,9 @@ class NotificationService
      */
     public static function notifyPaymentSuccess(User $user, string $orderNo, int $amount, string $paymentMethod): void
     {
+        if (!NotificationPreference::isEnabled($user->id, 'database', 'payment_success')) {
+            return;
+        }
         $user->notify(new PaymentSuccessNotification($orderNo, $amount, $paymentMethod));
     }
 
