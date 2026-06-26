@@ -88,7 +88,8 @@ return new class extends Migration
             ['name' => 'tenant.create', 'display_name' => '创建租户', 'group' => 'tenant', 'description' => '创建新租户'],
             ['name' => 'tenant.update', 'display_name' => '更新租户', 'group' => 'tenant', 'description' => '更新租户信息'],
             ['name' => 'tenant.delete', 'display_name' => '删除租户', 'group' => 'tenant', 'description' => '删除租户'],
-            ['name' => 'tenant.suspend', 'display_name' => '暂停租户', 'group' => 'tenant', 'description' => '暂停/恢复租户'],
+            ['name' => 'tenant.suspend', 'display_name' => '暂停租户', 'group' => 'tenant', 'description' => '暂停租户'],
+            ['name' => 'tenant.activate', 'display_name' => '恢复租户', 'group' => 'tenant', 'description' => '恢复已暂停的租户'],
             ['name' => 'tenant.view', 'display_name' => '查看租户', 'group' => 'tenant', 'description' => '查看租户详情'],
             // 成员管理
             ['name' => 'member.create', 'display_name' => '添加成员', 'group' => 'member', 'description' => '向租户添加成员'],

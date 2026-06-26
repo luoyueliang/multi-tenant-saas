@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed
+- activate 路由/控制器权限 tenant.suspend → tenant.activate（新增 tenant.activate 权限到 RBAC seed）
+- LogEventListener 缺 $afterCommit = true（事务回滚时记录幽灵状态）
+- phpunit.xml.dist 缺失（php artisan test 和 vendor/bin/phpunit 均失败）
+- EmailVerificationMail/PasswordResetMail 邮件正文硬编码中文（改用 trans() i18n）
+- SendEmailVerificationJob/SendPasswordResetJob backoff=30 应为数组（改为 [10,30,60] 指数退避）
+- UserRegistered::$tenantId 类型 ?int 与 TenantContext::getId() 返回 ?string 不一致
+
 ## [0.2.2] - 2026-06-24
 
 ### Fixed

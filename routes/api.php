@@ -60,7 +60,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->prefix('v1')->group(functio
     Route::put('/tenants/{tenantId}', [TenantController::class, 'update'])->middleware('rbac.permission:tenant.update');
     Route::delete('/tenants/{tenantId}', [TenantController::class, 'destroy'])->middleware('rbac.permission:tenant.delete');
     Route::post('/tenants/{tenantId}/suspend', [TenantController::class, 'suspend'])->middleware('rbac.permission:tenant.suspend');
-    Route::post('/tenants/{tenantId}/activate', [TenantController::class, 'activate'])->middleware('rbac.permission:tenant.suspend');
+    Route::post('/tenants/{tenantId}/activate', [TenantController::class, 'activate'])->middleware('rbac.permission:tenant.activate');
 
     // 成员管理（需 member.* 权限）
     Route::get('/tenants/{tenantId}/members', [TenantMemberController::class, 'index'])->middleware('rbac.permission:member.view');
