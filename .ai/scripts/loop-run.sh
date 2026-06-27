@@ -112,21 +112,24 @@ parse_subtask_files() {
 # 验证子任务文件是否重叠
 # 返回 0=无冲突, 1=有冲突
 validate_split() {
-    local -n _subtask_ids=$1
-    local -A file_owners=()
+    # 参数: 子任务ID列表（直接传值，不用nameref，兼容bash 3.2）
+    local seen_files=""
     local has_conflict=false
+    local file_count=0
 
-    for sid in "${_subtask_ids[@]}"; do
+    for sid in "$@"; do
         local stf="$PROJECT_DIR/.ai/tasks/${sid}.md"
         [[ -f "$stf" ]] || continue
 
         while IFS= read -r filepath; do
             [[ -z "$filepath" ]] && continue
-            if [[ -n "${file_owners[$filepath]:-}" ]]; then
-                fail "文件冲突: $filepath 同时在 ${file_owners[$filepath]} 和 $sid 中"
+            # 字符串匹配替代关联数组（bash 3.2兼容）
+            if echo "$seen_files" | grep -qF "|$filepath|"; then
+                fail "文件冲突: $filepath 出现在多个子任务中（含 $sid）"
                 has_conflict=true
             else
-                file_owners[$filepath]="$sid"
+                seen_files="${seen_files}|${filepath}|"
+                file_count=$((file_count + 1))
             fi
         done < <(parse_subtask_files "$stf")
     done
@@ -134,7 +137,7 @@ validate_split() {
     if [[ "$has_conflict" == "true" ]]; then
         return 1
     fi
-    ok "文件冲突检测通过：${#file_owners[@]} 个文件均无重叠"
+    ok "文件冲突检测通过：$file_count 个文件均无重叠"
     return 0
 }
 
@@ -266,7 +269,7 @@ SUBTASK: ${TASK_ID}b
     ok "共生成 ${#subtask_ids[@]} 个子任务: ${subtask_ids[*]}"
 
     # 文件冲突检测
-    if ! validate_split subtask_ids; then
+    if ! validate_split "${subtask_ids[@]}"; then
         fail "文件冲突检测失败，尝试重新拆分（1 次）..."
         local retry_output
         retry_output=$(claude -p "上一次拆分存在文件冲突，请重新拆分。
@@ -311,7 +314,7 @@ $split_output
                 subtask_ids+=("$current_id")
             fi
 
-            if [[ ${#subtask_ids[@]} -gt 0 ]] && validate_split subtask_ids; then
+            if [[ ${#subtask_ids[@]} -gt 0 ]] && validate_split "${subtask_ids[@]}"; then
                 ok "重新拆分成功，文件无冲突"
             else
                 fail "重新拆分仍有冲突，回退到人工处理"

@@ -55,7 +55,7 @@ parse_files() {
     printf '%s\n' "${files[@]}"
 }
 
-declare -A file_map=()
+seen_files=""
 has_conflict=false
 
 info "文件冲突检测："
@@ -72,11 +72,11 @@ for TASK in "${TASKS[@]}"; do
 
     while IFS= read -r filepath; do
         [[ -z "$filepath" ]] && continue
-        if [[ -n "${file_map[$filepath]:-}" ]]; then
-            fail "冲突: $filepath 同时属于 ${file_map[$filepath]} 和 $TASK"
+        if echo "$seen_files" | grep -qF "|$filepath|"; then
+            fail "冲突: $filepath 同时属于多个任务（含 $TASK）"
             has_conflict=true
         else
-            file_map[$filepath]="$TASK"
+            seen_files="${seen_files}|${filepath}|"
         fi
     done <<< "$task_files"
 done

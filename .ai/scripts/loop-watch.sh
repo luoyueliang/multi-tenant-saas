@@ -1,9 +1,10 @@
 #!/bin/bash
 #
 # loop-watch: 多日志交替监控工具
-# 用法: ./loop-watch.sh .ai/reports/TASK-004a.log .ai/reports/TASK-004b.log .ai/reports/TASK-004c.log
+# 用法: ./loop-watch.sh .ai/reports/TASK-004a.log .ai/reports/TASK-004b.log
 #
-# 原理: 每秒轮询所有日志文件，输出新增行（带前缀），解决 tail -f 对批量写入日志无输出的问题
+# 原理: 每秒轮询所有日志文件，输出新增行（带前缀）
+# 兼容 bash 3.2（不用关联数组）
 
 set -euo pipefail
 
@@ -12,29 +13,33 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+# 用并行数组替代关联数组（bash 3.2兼容）
+LOG_FILES=("$@")
+LOG_OFFSETS=()
+
 # 初始化每个文件的已读位置
-declare -A OFFSETS
-for log in "$@"; do
+for i in "${!LOG_FILES[@]}"; do
+    log="${LOG_FILES[$i]}"
     if [ -f "$log" ]; then
-        OFFSETS[$log]=$(wc -c < "$log")
+        LOG_OFFSETS[$i]=$(wc -c < "$log")
     else
-        OFFSETS[$log]=0
+        LOG_OFFSETS[$i]=0
     fi
-    # 提取任务名作为前缀
     name=$(basename "$log" .log)
-    echo "[$name] 监控中: $log (初始位置: ${OFFSETS[$log]} 字节)"
+    echo "[$name] 监控中: $log (初始位置: ${LOG_OFFSETS[$i]} 字节)"
 done
 
 echo "--- 等待新输出 ---"
 
 while true; do
     has_new=false
-    for log in "$@"; do
+    for i in "${!LOG_FILES[@]}"; do
+        log="${LOG_FILES[$i]}"
         if [ ! -f "$log" ]; then
             continue
         fi
         current_size=$(wc -c < "$log")
-        prev_size=${OFFSETS[$log]}
+        prev_size="${LOG_OFFSETS[$i]}"
         if [ "$current_size" -gt "$prev_size" ]; then
             name=$(basename "$log" .log)
             # 读取新增内容
@@ -45,13 +50,13 @@ while true; do
                     echo "[$name] $line"
                 done
             fi
-            OFFSETS[$log]=$current_size
+            LOG_OFFSETS[$i]=$current_size
             has_new=true
         elif [ "$current_size" -lt "$prev_size" ]; then
             # 文件被截断/重建
             name=$(basename "$log" .log)
             echo "[$name] ⚠ 日志文件已重置"
-            OFFSETS[$log]=0
+            LOG_OFFSETS[$i]=0
             has_new=true
         fi
     done
