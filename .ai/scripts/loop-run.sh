@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 # =============================================================================
 # loop-run.sh — Loop Engineering 自循环执行脚本
 # 用法: .ai/scripts/loop-run.sh TASK-0001

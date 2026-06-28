@@ -55,4 +55,11 @@ return [
             ],
         ],
     ],
+
+    // 邮件模板配置
+    'mail_templates' => [
+        'default_from_address' => env('MAIL_FROM_ADDRESS', 'noreply@example.com'),
+        'default_from_name' => env('MAIL_FROM_NAME', 'Tenant SaaS'),
+        'cache_ttl' => 3600,
+    ],
 ];

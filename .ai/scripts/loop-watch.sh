@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 #
 # loop-watch: 多日志交替监控工具
 # 用法: ./loop-watch.sh .ai/reports/TASK-004a.log .ai/reports/TASK-004b.log

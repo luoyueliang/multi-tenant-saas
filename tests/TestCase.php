@@ -286,6 +286,11 @@ abstract class TestCase extends BaseTestCase
             $table->json('limits')->nullable();
             $table->boolean('is_active')->default(true);
             $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->json('metered_price')->nullable();
+            $table->string('metered_unit', 30)->nullable();
+            $table->boolean('overage_allowed')->default(false);
+            $table->decimal('overage_price', 10, 4)->default(0);
+            $table->unsignedInteger('rate_limit_rpm')->default(60);
             $table->timestamps();
         });
 
@@ -553,6 +558,20 @@ abstract class TestCase extends BaseTestCase
             $table->index(['tenant_id', 'provider']);
             $table->index(['user_id', 'provider']);
             $table->unique(['provider', 'provider_id']);
+        });
+
+        // 用量记录表
+        Schema::create('usage_records', function (Blueprint $table) {
+            $table->unsignedBigInteger('usage_record_id')->primary();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('metric_type', 50);
+            $table->decimal('value', 18, 4);
+            $table->string('period', 7);
+            $table->timestamp('recorded_at');
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+
+            $table->index(['tenant_id', 'metric_type', 'period']);
         });
     }
 

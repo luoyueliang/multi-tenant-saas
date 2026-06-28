@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 # =============================================================================
 # parallel-run.sh — 并行执行多个 Task，各自输出到独立日志
 # 用法: .ai/scripts/parallel-run.sh TASK-001a TASK-001b [TASK-001c...]
@@ -33,6 +33,7 @@ TASKS=("$@")
 
 seen_files=""
 has_conflict=false
+file_count=0
 
 info "文件冲突检测："
 for TASK in "${TASKS[@]}"; do
@@ -53,6 +54,7 @@ for TASK in "${TASKS[@]}"; do
             has_conflict=true
         else
             seen_files="${seen_files}|${filepath}|"
+            file_count=$((file_count + 1))
         fi
     done <<< "$task_files"
 done
@@ -69,7 +71,7 @@ if [[ "$has_conflict" == "true" ]]; then
     exit 2
 fi
 
-ok "文件冲突检测通过：${#file_map[@]} 个文件均无重叠"
+ok "文件冲突检测通过：$file_count 个文件均无重叠"
 echo ""
 
 # =============================================================================

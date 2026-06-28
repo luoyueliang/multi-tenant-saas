@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 # =============================================================================
 # plan-task.sh — 用 Claude Code 拆分需求为 Sprint + Task 列表
 # 用法: .ai/scripts/plan-task.sh "完成 Auth 模块登录功能" [sprint-001]

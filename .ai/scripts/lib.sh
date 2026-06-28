@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 # =============================================================================
 # lib.sh — 共享函数库
 # 用法: source "$(dirname "$0")/lib.sh"
@@ -13,7 +13,7 @@ parse_subtask_files() {
     local files=()
 
     while IFS= read -r line; do
-        if [[ "$line" =~ ^只允许修改 ]]; then
+        if [[ "$line" =~ ^\*{0,2}只允许修改 ]]; then
             in_section=true
             continue
         fi
@@ -28,5 +28,7 @@ parse_subtask_files() {
         fi
     done < "$subtask_file"
 
-    printf '%s\n' "${files[@]}"
+    if [[ ${#files[@]} -gt 0 ]]; then
+        printf '%s\n' "${files[@]}"
+    fi
 }

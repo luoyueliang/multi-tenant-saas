@@ -23,6 +23,11 @@ class SubscriptionPlan extends Model
         'limits',
         'is_active',
         'sort_order',
+        'metered_price',
+        'metered_unit',
+        'overage_allowed',
+        'overage_price',
+        'rate_limit_rpm',
     ];
 
     protected function casts(): array
@@ -35,6 +40,11 @@ class SubscriptionPlan extends Model
             'limits' => 'array',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
+            'metered_price' => 'array',
+            'metered_unit' => 'string',
+            'overage_allowed' => 'boolean',
+            'overage_price' => 'decimal:4',
+            'rate_limit_rpm' => 'integer',
         ];
     }
 
