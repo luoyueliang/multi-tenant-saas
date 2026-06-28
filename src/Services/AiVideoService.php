@@ -7,11 +7,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 use MultiTenantSaas\Contracts\TenantContextContract;
 use MultiTenantSaas\Models\AiRequest;
 use MultiTenantSaas\Models\FileUpload;
 use MultiTenantSaas\Services\Ai\KlingProvider;
 use MultiTenantSaas\Services\Ai\RunwayProvider;
+use MultiTenantSaas\Services\FileService;
 use RuntimeException;
 use Throwable;
 
@@ -538,28 +540,30 @@ class AiVideoService
         $tempPath = (string) tempnam(sys_get_temp_dir(), 'ai_vid_');
         file_put_contents($tempPath, $binary);
 
-        $filename = 'ai_video_'.time().'_'.Str::random(8).'.'.$extension;
+        try {
+            $filename = 'ai_video_'.time().'_'.Str::random(8).'.'.$extension;
 
-        $uploadedFile = new UploadedFile(
-            $tempPath,
-            $filename,
-            $contentType,
-            null,
-            true,
-        );
+            $uploadedFile = new UploadedFile(
+                $tempPath,
+                $filename,
+                $contentType,
+                null,
+                true,
+            );
 
-        $fileUpload = FileService::upload(
-            $uploadedFile,
-            $this->currentTenantIntId(),
-            $this->currentUserId(),
-            (string) config('ai.video.storage_category', 'ai_generated'),
-            config('ai.video.storage_disk'),
-            (bool) config('ai.video.storage_is_public', false),
-        );
+            $fileUpload = FileService::upload(
+                $uploadedFile,
+                $this->currentTenantIntId(),
+                $this->currentUserId(),
+                (string) config('ai.video.storage_category', 'ai_generated'),
+                config('ai.video.storage_disk'),
+                (bool) config('ai.video.storage_is_public', false),
+            );
 
-        @unlink($tempPath);
-
-        return $fileUpload;
+            return $fileUpload;
+        } finally {
+            @unlink($tempPath);
+        }
     }
 
     /**
@@ -684,7 +688,7 @@ class AiVideoService
             return 0;
         }
 
-        return (int) max(0, round((microtime(true) - $created->timestamp) * 1000));
+        return (int) max(0, Carbon::now()->diffInMilliseconds($created));
     }
 
     /**

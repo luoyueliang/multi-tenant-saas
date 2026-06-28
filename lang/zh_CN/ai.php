@@ -54,6 +54,7 @@ return [
     'image_prompt_too_long' => '图片提示文本超出长度限制（最大 :max 字符）',
 
     // 视频 AI（由 AiVideoService、RunwayProvider、KlingProvider 抛出）
+    'video_operation_not_supported' => '提供商 :provider 不支持视频操作 :operation',
     'video_input_not_found' => '输入视频不存在',
     'video_prompt_too_long' => '视频提示文本超出长度限制（最大 :max 字符）',
     'video_resolution_not_supported' => '提供商 :provider 不支持分辨率 :resolution',

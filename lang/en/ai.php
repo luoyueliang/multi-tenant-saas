@@ -54,6 +54,7 @@ return [
     'image_prompt_too_long' => 'Image prompt exceeds length limit (max :max chars)',
 
     // Video AI (thrown by AiVideoService, RunwayProvider, KlingProvider)
+    'video_operation_not_supported' => 'Provider :provider does not support video operation :operation',
     'video_input_not_found' => 'Input video not found',
     'video_prompt_too_long' => 'Video prompt exceeds length limit (max :max chars)',
     'video_resolution_not_supported' => 'Provider :provider does not support resolution :resolution',

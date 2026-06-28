@@ -272,7 +272,7 @@ class KlingProvider
      */
     public function submitVideoEdit(string $model, string $videoUrl, string $prompt, array $options = []): array
     {
-        throw new \RuntimeException(trans('ai.image_operation_not_supported', [
+        throw new \RuntimeException(trans('ai.video_operation_not_supported', [
             'provider' => 'kling',
             'operation' => 'video_edit',
         ]));
