@@ -39,6 +39,7 @@ class MfaDevice extends Model
     protected function casts(): array
     {
         return [
+            'secret' => 'encrypted',
             'is_primary' => 'boolean',
             'is_verified' => 'boolean',
             'last_used_at' => 'datetime',

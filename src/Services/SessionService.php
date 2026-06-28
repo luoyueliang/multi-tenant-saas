@@ -3,6 +3,7 @@
 namespace MultiTenantSaas\Services;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use MultiTenantSaas\Context\TenantContext;
@@ -69,7 +70,7 @@ class SessionService
     /**
      * 活跃会话列表
      */
-    public function listSessions(int $userId)
+    public function listSessions(int $userId): Collection
     {
         return UserSession::where('user_id', $userId)
             ->orderByDesc('last_active_at')

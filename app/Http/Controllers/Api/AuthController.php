@@ -365,7 +365,7 @@ class AuthController extends Controller
     /**
      * 记录登录会话
      */
-    private function recordSession(Request $request, User $user, int $tokenId, mixed $tenantId): void
+    private function recordSession(Request $request, User $user, int $tokenId, ?int $tenantId): void
     {
         app(SessionService::class)->recordSession(
             $user->user_id,

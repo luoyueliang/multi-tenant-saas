@@ -1,24 +1,24 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\TenantController;
-use App\Http\Controllers\Api\TenantMemberController;
-use App\Http\Controllers\Api\TenantSettingController;
-use App\Http\Controllers\Api\TenantDomainController;
-use App\Http\Controllers\Api\TenantCreditController;
-use App\Http\Controllers\Api\TenantAuditController;
-use App\Http\Controllers\Api\TenantSslController;
-use App\Http\Controllers\Api\TenantPaymentController;
-use App\Http\Controllers\Api\TenantOAuthController;
-use App\Http\Controllers\Api\TenantTokenController;
-use App\Http\Controllers\Api\TenantQuotaController;
 use App\Http\Controllers\Api\AdminSettingsController;
-use App\Http\Controllers\Api\RbacController;
-use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\MfaController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\RbacController;
+use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\TenantAuditController;
+use App\Http\Controllers\Api\TenantController;
+use App\Http\Controllers\Api\TenantCreditController;
+use App\Http\Controllers\Api\TenantDomainController;
+use App\Http\Controllers\Api\TenantMemberController;
+use App\Http\Controllers\Api\TenantOAuthController;
+use App\Http\Controllers\Api\TenantPaymentController;
+use App\Http\Controllers\Api\TenantQuotaController;
+use App\Http\Controllers\Api\TenantSettingController;
+use App\Http\Controllers\Api\TenantSslController;
+use App\Http\Controllers\Api\TenantTokenController;
+use Illuminate\Support\Facades\Route;
 
 // ========== 认证 API（无需认证） ==========
 Route::prefix('v1/auth')->group(function () {
@@ -65,7 +65,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->prefix('v1')->group(functio
     Route::prefix('/mfa')->group(function () {
         // TOTP 设备
         Route::post('/totp/setup', [MfaController::class, 'setupTotp']);
-        Route::post('/totp/confirm', [MfaController::class, 'confirmTotp']);
+        Route::post('/totp/confirm', [MfaController::class, 'confirmTotp'])->middleware('throttle:5,1');
         // 邮箱/短信设备
         Route::post('/email/setup', [MfaController::class, 'setupEmail']);
         Route::post('/sms/setup', [MfaController::class, 'setupSms']);
@@ -78,7 +78,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->prefix('v1')->group(functio
         Route::put('/devices/{deviceId}', [MfaController::class, 'renameDevice']);
         Route::post('/devices/{deviceId}/primary', [MfaController::class, 'setPrimary']);
         // 恢复码
-        Route::post('/recovery-codes/generate', [MfaController::class, 'generateRecoveryCodes']);
+        Route::post('/recovery-codes/generate', [MfaController::class, 'generateRecoveryCodes'])->middleware('throttle:5,1');
         Route::get('/recovery-codes/status', [MfaController::class, 'recoveryCodeStatus']);
         // 会话管理
         Route::get('/sessions', [MfaController::class, 'sessions']);
@@ -143,8 +143,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->prefix('v1')->group(functio
     Route::get('/tenants/{tenantId}/audit-logs', [TenantAuditController::class, 'index'])->middleware('rbac.permission:audit.view');
 
     // API Token
-    Route::get("/tenants/{tenantId}/api-tokens", [TenantTokenController::class, "index"])->middleware('rbac.permission:member.view');
-    Route::get("/tenants/{tenantId}/api-tokens/abilities", [TenantTokenController::class, "abilities"])->middleware('rbac.permission:member.view');
+    Route::get('/tenants/{tenantId}/api-tokens', [TenantTokenController::class, 'index'])->middleware('rbac.permission:member.view');
+    Route::get('/tenants/{tenantId}/api-tokens/abilities', [TenantTokenController::class, 'abilities'])->middleware('rbac.permission:member.view');
     Route::post('/tenants/{tenantId}/api-tokens', [TenantTokenController::class, 'store'])->middleware('rbac.permission:member.update');
     Route::delete('/tenants/{tenantId}/api-tokens/{tokenId}', [TenantTokenController::class, 'destroy'])->middleware('rbac.permission:member.update');
 

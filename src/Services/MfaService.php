@@ -2,6 +2,7 @@
 
 namespace MultiTenantSaas\Services;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use MultiTenantSaas\Context\TenantContext;
@@ -273,8 +274,12 @@ class MfaService
      */
     public function getRecoveryCodeStatus(int $userId): array
     {
-        $total = MfaRecoveryCode::where('user_id', $userId)->count();
-        $used = MfaRecoveryCode::where('user_id', $userId)->where('is_used', true)->count();
+        $stats = MfaRecoveryCode::where('user_id', $userId)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN is_used THEN 1 ELSE 0 END) as used')
+            ->first();
+
+        $total = (int) ($stats->total ?? 0);
+        $used = (int) ($stats->used ?? 0);
 
         return [
             'total' => $total,
@@ -331,7 +336,7 @@ class MfaService
     /**
      * 列出用户的所有 MFA 设备
      */
-    public function listDevices(int $userId)
+    public function listDevices(int $userId): Collection
     {
         return MfaDevice::where('user_id', $userId)->orderByDesc('is_primary')->orderByDesc('created_at')->get();
     }

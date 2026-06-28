@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use MultiTenantSaas\Models\MfaDevice;
+use MultiTenantSaas\Models\UserSession;
 use MultiTenantSaas\Services\AuditService;
 use MultiTenantSaas\Services\MfaService;
 use MultiTenantSaas\Services\SessionService;
@@ -31,6 +34,8 @@ class MfaController extends Controller
         $secret = $this->mfaService->generateTotpSecret();
         $label = $request->input('label', $user->email ?: (string) $user->user_id);
 
+        Cache::put("mfa:totp_setup:{$user->user_id}", ['secret' => $secret, 'label' => $label], 300);
+
         return response()->json([
             'success' => true,
             'message' => trans('auth.mfa_totp_setup'),
@@ -47,14 +52,23 @@ class MfaController extends Controller
     public function confirmTotp(Request $request)
     {
         $request->validate([
-            'secret' => 'required|string',
             'code' => 'required|string|size:6',
             'label' => 'nullable|string|max:100',
         ]);
 
         $user = $request->user();
 
-        if (! $this->mfaService->verifyTotp($request->input('secret'), $request->input('code'))) {
+        $setupData = Cache::pull("mfa:totp_setup:{$user->user_id}");
+        if (! $setupData || empty($setupData['secret'])) {
+            return response()->json([
+                'success' => false,
+                'message' => trans('auth.mfa_totp_setup_expired'),
+            ], 422);
+        }
+
+        $secret = $setupData['secret'];
+
+        if (! $this->mfaService->verifyTotp($secret, $request->input('code'))) {
             return response()->json([
                 'success' => false,
                 'message' => trans('auth.mfa_code_invalid'),
@@ -63,9 +77,11 @@ class MfaController extends Controller
 
         $device = $this->mfaService->setupTotpDevice(
             $user->user_id,
-            $request->input('secret'),
-            $request->input('label', 'Authenticator')
+            $secret,
+            $request->input('label', $setupData['label'] ?? 'Authenticator')
         );
+
+        $this->mfaService->touchDevice($user->user_id, 'totp');
 
         AuditService::log('mfa_setup_totp', 'mfa', $user->user_id);
 
@@ -323,7 +339,7 @@ class MfaController extends Controller
     /**
      * MFA 设备转数组（隐藏 secret）
      */
-    private function deviceToArray($device): array
+    private function deviceToArray(MfaDevice $device): array
     {
         return [
             'mfa_device_id' => $device->mfa_device_id,
@@ -338,7 +354,7 @@ class MfaController extends Controller
     /**
      * 会话转数组（标记当前会话）
      */
-    private function sessionToArray($session, ?int $currentTokenId): array
+    private function sessionToArray(UserSession $session, ?int $currentTokenId): array
     {
         return [
             'user_session_id' => $session->user_session_id,
