@@ -1,0 +1,16 @@
+{
+  "task_id": "TASK-036",
+  "git_diff_summary": ".ai/guardian.json              | 20 +++++----\n .ai/metrics.json               | 30 +++++++++----\n .ai/review/TASK-034-review.md  | 68 ++++++++++++++---------------\n .ai/state.json                 |  4 +-\n src/TenancyServiceProvider.php | 47 +++++++++++++-------\n tests/InvoiceServiceTest.php   |  6 +--\n tests/TestCase.php             | 97 ++++++++++++++++++++++++++++++++++++++++++\n 7 files changed, 200 insertions(+), 72 deletions(-)",
+  "changed_files": [
+    ".ai/guardian.json",
+    ".ai/metrics.json",
+    ".ai/review/TASK-034-review.md",
+    ".ai/state.json",
+    "src/TenancyServiceProvider.php",
+    "tests/InvoiceServiceTest.php",
+    "tests/TestCase.php"
+  ],
+  "review_notes": "",
+  "key_decisions": [],
+  "timestamp": ""
+}
