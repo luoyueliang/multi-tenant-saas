@@ -25,6 +25,7 @@ use MultiTenantSaas\Services\AlertService;
 use MultiTenantSaas\Services\AlipayOAuthService;
 use MultiTenantSaas\Services\ApiVersionService;
 use MultiTenantSaas\Services\CacheService;
+use MultiTenantSaas\Services\EventBusService;
 use MultiTenantSaas\Services\ExportService;
 use MultiTenantSaas\Services\HealthService;
 use MultiTenantSaas\Services\IdGenerator;
@@ -146,6 +147,7 @@ class TenancyServiceProvider extends ServiceProvider
         $this->app->singleton(CacheService::class);
         $this->app->singleton(PaymentSecurityService::class);
         $this->app->singleton(SubscriptionService::class);
+        $this->app->singleton(EventBusService::class);
         $this->app->singleton(TenantProfileService::class);
         $this->app->singleton(QueueService::class);
         $this->app->singleton(SocialiteService::class);

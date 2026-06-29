@@ -76,11 +76,19 @@ class DispatchEventJob implements ShouldQueue
     protected function dispatchInternal(string $handler): void
     {
         if (! class_exists($handler)) {
-            throw new \RuntimeException("Handler class not found: {$handler}");
+            throw new \RuntimeException(
+                trans('common.event_subscription_handler_not_found', ['handler' => $handler])
+            );
         }
 
         /** @var EventHandler $instance */
         $instance = app($handler);
+
+        if (! $instance instanceof EventHandler) {
+            throw new \RuntimeException(
+                trans('common.event_subscription_handler_invalid', ['handler' => $handler])
+            );
+        }
 
         $instance->handle($this->eventType, $this->payload);
     }
@@ -112,6 +120,21 @@ class DispatchEventJob implements ShouldQueue
     }
 
     /**
+     * 脱敏失败原因：移除文件路径，截断过长内容
+     */
+    protected function sanitizeFailureReason(\Throwable $exception): string
+    {
+        $reason = $exception->getMessage()."\n\n".$exception->getTraceAsString();
+        $reason = preg_replace('/\/[^\s:)]+\.(php|blade\.php|phtml)/', '[redacted]', $reason);
+        $reason = mb_substr($reason, 0, 4096);
+        if (mb_strlen($exception->getMessage()."\n\n".$exception->getTraceAsString()) > 4096) {
+            $reason .= "\n[truncated]";
+        }
+
+        return (string) $reason;
+    }
+
+    /**
      * 重试耗尽后转入死信队列
      */
     public function failed(\Throwable $exception): void
@@ -124,7 +147,7 @@ class DispatchEventJob implements ShouldQueue
             'event_type' => $this->eventType,
             'subscription_id' => $this->subscriptionId,
             'original_data' => $this->payload,
-            'failure_reason' => $exception->getMessage()."\n\n".$exception->getTraceAsString(),
+            'failure_reason' => $this->sanitizeFailureReason($exception),
             'retry_count' => $retryCount,
             'status' => DeadLetter::STATUS_FAILED,
         ]);

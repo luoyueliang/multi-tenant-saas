@@ -78,6 +78,13 @@ return [
     'webhook_inactive' => 'Webhook is inactive',
     'webhook_event_invalid' => 'Unsupported event type',
     'webhook_signature_invalid' => 'Webhook signature verification failed',
+    'event_subscription_not_found' => 'Event subscription not found',
+    'event_subscription_handler_not_found' => 'Event handler class :handler not found',
+    'event_subscription_handler_invalid' => 'Event handler :handler must implement EventHandler interface',
+    'event_type_invalid' => 'Unsupported event type :event',
+    'event_subscription_type_invalid' => 'Invalid subscription type',
+    'dead_letter_not_found' => 'Dead letter not found',
+    'dead_letter_retried' => 'Dead letter has been retried',
     'provider' => [
         'wechat' => 'WeChat Open Platform',
         'wechat_work_internal' => 'WeChat Work (Internal App)',
