@@ -83,6 +83,18 @@ return [
         ],
     ],
 
+    // Webhook 系统配置
+    'webhooks' => [
+        // 最大重试次数（指数退避：10s, 30s, 60s, 120s, 300s）
+        'max_retries' => (int) env('WEBHOOK_MAX_RETRIES', 5),
+        // HTTP 请求超时（秒）
+        'timeout' => (int) env('WEBHOOK_TIMEOUT', 30),
+        // 签名头部名称
+        'signature_header' => env('WEBHOOK_SIGNATURE_HEADER', 'X-Webhook-Signature'),
+        // 投递队列名称
+        'queue' => env('WEBHOOK_QUEUE', 'default'),
+    ],
+
     // 订阅计划配额限制
     'plans' => [
         'free' => [

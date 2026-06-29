@@ -850,6 +850,44 @@ abstract class TestCase extends BaseTestCase
             $table->index(['auto_cleanup', 'is_exempt']);
             $table->index('data_type');
         });
+
+        // Webhook 端点表
+        Schema::create('webhooks', function (Blueprint $table) {
+            $table->unsignedBigInteger('webhook_id')->primary();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('url', 500);
+            $table->json('events');
+            $table->string('secret', 128);
+            $table->boolean('is_active')->default(true);
+            $table->string('description', 255)->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index('tenant_id');
+            $table->index(['tenant_id', 'is_active']);
+        });
+
+        // Webhook 交付记录表
+        Schema::create('webhook_deliveries', function (Blueprint $table) {
+            $table->unsignedBigInteger('webhook_delivery_id')->primary();
+            $table->unsignedBigInteger('webhook_id');
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('event_type', 100);
+            $table->json('payload');
+            $table->unsignedSmallInteger('response_status_code')->nullable();
+            $table->text('response_body')->nullable();
+            $table->unsignedInteger('duration_ms')->nullable();
+            $table->unsignedTinyInteger('attempts')->default(0);
+            $table->string('status', 20)->default('pending');
+            $table->text('error_message')->nullable();
+            $table->timestamps();
+
+            $table->index('webhook_id');
+            $table->index('tenant_id');
+            $table->index(['webhook_id', 'status']);
+            $table->index(['tenant_id', 'status']);
+            $table->index('event_type');
+        });
     }
 
 

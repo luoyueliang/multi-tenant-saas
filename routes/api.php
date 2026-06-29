@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\TenantQuotaController;
 use App\Http\Controllers\Api\TenantSettingController;
 use App\Http\Controllers\Api\TenantSslController;
 use App\Http\Controllers\Api\TenantTokenController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // ========== 认证 API（无需认证） ==========
@@ -196,4 +197,100 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->prefix('v1')->group(functio
     Route::get('/files/{id}/download', [FileController::class, 'download']);
     Route::post('/files/{id}/share', [FileController::class, 'share']);
     Route::delete('/files/{id}', [FileController::class, 'destroy'])->middleware('rbac.permission:file.delete');
+
+    // ========== Webhook 管理（需 webhook.manage 权限） ==========
+    Route::get('/webhooks/events', function () {
+        return response()->json([
+            'success' => true,
+            'data' => app(\MultiTenantSaas\Services\WebhookService::class)->getSupportedEvents(),
+        ]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::get('/webhooks', function (Request $request) {
+        $service = app(\MultiTenantSaas\Services\WebhookService::class);
+        $eventType = $request->query('event');
+        $webhooks = $service->listWebhooks($eventType);
+        return response()->json(['success' => true, 'data' => $webhooks]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::post('/webhooks', function (Request $request) {
+        $data = $request->validate([
+            'url' => ['required', 'string', 'max:500'],
+            'events' => ['required', 'array'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['boolean'],
+        ]);
+        $webhook = app(\MultiTenantSaas\Services\WebhookService::class)
+            ->createWebhook($data['url'], $data['events'], $data['description'] ?? null, $data['is_active'] ?? true);
+        return response()->json(['success' => true, 'data' => $webhook], 201);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::get('/webhooks/{id}', function (int $id) {
+        $webhook = app(\MultiTenantSaas\Services\WebhookService::class)->findWebhook($id);
+        if (!$webhook) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'data' => $webhook]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::put('/webhooks/{id}', function (Request $request, int $id) {
+        $data = $request->validate([
+            'url' => ['sometimes', 'string', 'max:500'],
+            'events' => ['sometimes', 'array'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+        $webhook = app(\MultiTenantSaas\Services\WebhookService::class)->updateWebhook($id, $data);
+        if (!$webhook) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'data' => $webhook]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::delete('/webhooks/{id}', function (int $id) {
+        $deleted = app(\MultiTenantSaas\Services\WebhookService::class)->deleteWebhook($id);
+        if (!$deleted) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'message' => trans('common.deleted')]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::post('/webhooks/{id}/activate', function (int $id) {
+        $webhook = app(\MultiTenantSaas\Services\WebhookService::class)->activateWebhook($id);
+        if (!$webhook) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'data' => $webhook]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::post('/webhooks/{id}/deactivate', function (int $id) {
+        $webhook = app(\MultiTenantSaas\Services\WebhookService::class)->deactivateWebhook($id);
+        if (!$webhook) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'data' => $webhook]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::post('/webhooks/{id}/regenerate-secret', function (int $id) {
+        $webhook = app(\MultiTenantSaas\Services\WebhookService::class)->regenerateSecret($id);
+        if (!$webhook) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'data' => $webhook]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::get('/webhooks/{id}/deliveries', function (Request $request, int $id) {
+        $service = app(\MultiTenantSaas\Services\WebhookService::class);
+        $status = $request->query('status');
+        $deliveries = $service->getDeliveries($id, $status);
+        return response()->json(['success' => true, 'data' => $deliveries]);
+    })->middleware('rbac.permission:webhook.manage');
+
+    Route::post('/webhooks/deliveries/{id}/resend', function (int $id) {
+        $resend = app(\MultiTenantSaas\Services\WebhookService::class)->resend($id);
+        if (!$resend) {
+            return response()->json(['success' => false, 'message' => trans('common.webhook_delivery_not_found')], 404);
+        }
+        return response()->json(['success' => true, 'message' => trans('common.webhook_resent')]);
+    })->middleware('rbac.permission:webhook.manage');
 });

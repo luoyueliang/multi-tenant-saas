@@ -72,6 +72,12 @@ return [
     'profile_update_failed' => '个人资料更新失败',
     'preferences_update_failed' => '偏好设置更新失败',
     'preferences_reset_failed' => '偏好设置重置失败',
+    'webhook_not_found' => 'Webhook 不存在',
+    'webhook_delivery_not_found' => 'Webhook 交付记录不存在',
+    'webhook_resent' => 'Webhook 已重新投递',
+    'webhook_inactive' => 'Webhook 未激活',
+    'webhook_event_invalid' => '不支持的事件类型',
+    'webhook_signature_invalid' => 'Webhook 签名验证失败',
     'provider' => [
         'wechat' => '微信开放平台',
         'wechat_work_internal' => '企业微信（内部应用）',

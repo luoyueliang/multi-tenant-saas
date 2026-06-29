@@ -72,6 +72,12 @@ return [
     'profile_update_failed' => 'Profile update failed',
     'preferences_update_failed' => 'Preferences update failed',
     'preferences_reset_failed' => 'Preferences reset failed',
+    'webhook_not_found' => 'Webhook not found',
+    'webhook_delivery_not_found' => 'Webhook delivery not found',
+    'webhook_resent' => 'Webhook has been resent',
+    'webhook_inactive' => 'Webhook is inactive',
+    'webhook_event_invalid' => 'Unsupported event type',
+    'webhook_signature_invalid' => 'Webhook signature verification failed',
     'provider' => [
         'wechat' => 'WeChat Open Platform',
         'wechat_work_internal' => 'WeChat Work (Internal App)',
