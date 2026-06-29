@@ -83,6 +83,9 @@ abstract class TestCase extends BaseTestCase
 
         // 设置邮件驱动为 log，避免测试中真实投递
         $app['config']->set('mail.default', 'log');
+
+        // 设置广播驱动为 log，使 isAvailable() 返回 true（部分测试会覆盖为 null 测试降级）
+        $app['config']->set('broadcasting.default', 'log');
     }
 
     protected function setUpDatabase(): void
@@ -1051,6 +1054,44 @@ abstract class TestCase extends BaseTestCase
             $table->index(['tenant_id', 'status']);
             $table->index(['tenant_id', 'frequency']);
             $table->index('next_send_at');
+        });
+
+        // 站内通知表（TASK-026）
+        Schema::create('in_app_notifications', function (Blueprint $table) {
+            $table->unsignedBigInteger('in_app_notification_id')->primary();
+            $table->unsignedBigInteger('tenant_id')->index();
+            $table->unsignedBigInteger('user_id')->index();
+            $table->string('type', 30)->default('system');
+            $table->string('title', 200);
+            $table->text('body')->nullable();
+            $table->string('link', 500)->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamp('read_at')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['tenant_id', 'user_id', 'is_read'], 'idx_tenant_user_read');
+            $table->index(['tenant_id', 'user_id', 'type'], 'idx_tenant_user_type');
+            $table->index(['user_id', 'is_read'], 'idx_user_read');
+        });
+
+        // 广播事件表（TASK-026）
+        Schema::create('broadcast_events', function (Blueprint $table) {
+            $table->unsignedBigInteger('broadcast_event_id')->primary();
+            $table->unsignedBigInteger('tenant_id')->nullable()->index();
+            $table->string('event_type', 100);
+            $table->string('channel', 200);
+            $table->json('payload');
+            $table->boolean('is_sent')->default(false);
+            $table->text('error_message')->nullable();
+            $table->timestamp('sent_at')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['tenant_id', 'event_type', 'is_sent'], 'idx_tenant_event_sent');
+            $table->index('channel');
+            $table->index('is_sent');
         });
     }
 
