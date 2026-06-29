@@ -126,6 +126,23 @@ return [
     'resource_storage_usage_high' => '存储用量过高：:current MB，阈值 :threshold MB',
     'resource_alert_triggered' => '资源告警触发：:metric',
     'resource_alert_sent' => '资源告警已发送',
+
+    // 错误追踪与自定义报表（TASK-025）
+    'error_aggregated' => '错误聚合完成：共 :count 个错误组',
+    'error_impact_analyzed' => '错误影响面分析完成：影响 :tenants 个租户、:users 个用户',
+    'error_trend_generated' => '错误趋势已生成',
+    'error_notified' => '错误告警已发送',
+    'error_group_not_found' => '错误分组不存在',
+    'report_not_found' => '报表不存在',
+    'report_created' => '报表已创建',
+    'report_updated' => '报表已更新',
+    'report_deleted' => '报表已删除',
+    'report_format_invalid' => '不支持的报表格式',
+    'report_frequency_invalid' => '不支持的发送频率',
+    'report_template_not_found' => '报表模板不存在',
+    'report_export_unavailable' => '导出扩展库未安装，无法生成该格式',
+    'report_sent' => '报表已发送给 :count 个接收人',
+    'report_no_recipients' => '报表未配置接收人',
     'provider' => [
         'wechat' => '微信开放平台',
         'wechat_work_internal' => '企业微信（内部应用）',

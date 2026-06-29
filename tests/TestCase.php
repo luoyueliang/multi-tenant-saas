@@ -1025,6 +1025,33 @@ abstract class TestCase extends BaseTestCase
             $table->index(['period', 'cost_type']);
             $table->index('tenant_id');
         });
+
+        // 自定义报表表（TASK-025）
+        Schema::create('custom_reports', function (Blueprint $table) {
+            $table->unsignedBigInteger('custom_report_id')->primary();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('name', 200);
+            $table->string('description', 500)->nullable();
+            $table->json('metrics_config')->nullable();
+            $table->json('dimensions')->nullable();
+            $table->string('time_range', 30)->default('last_7_days');
+            $table->timestamp('start_at')->nullable();
+            $table->timestamp('end_at')->nullable();
+            $table->string('frequency', 20)->default('daily');
+            $table->json('recipients')->nullable();
+            $table->string('format', 20)->default('csv');
+            $table->string('template', 100)->nullable();
+            $table->string('status', 20)->default('active');
+            $table->timestamp('last_sent_at')->nullable();
+            $table->timestamp('next_send_at')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index('tenant_id');
+            $table->index(['tenant_id', 'status']);
+            $table->index(['tenant_id', 'frequency']);
+            $table->index('next_send_at');
+        });
     }
 
     protected function tearDown(): void

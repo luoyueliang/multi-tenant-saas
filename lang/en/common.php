@@ -126,6 +126,23 @@ return [
     'resource_storage_usage_high' => 'Storage usage too high: :current MB, threshold :threshold MB',
     'resource_alert_triggered' => 'Resource alert triggered: :metric',
     'resource_alert_sent' => 'Resource alert sent',
+
+    // Error tracking & custom reports (TASK-025)
+    'error_aggregated' => 'Error aggregation completed: :count error groups',
+    'error_impact_analyzed' => 'Error impact analysis completed: affected :tenants tenants, :users users',
+    'error_trend_generated' => 'Error trend generated',
+    'error_notified' => 'Error alert sent',
+    'error_group_not_found' => 'Error group not found',
+    'report_not_found' => 'Report not found',
+    'report_created' => 'Report created',
+    'report_updated' => 'Report updated',
+    'report_deleted' => 'Report deleted',
+    'report_format_invalid' => 'Unsupported report format',
+    'report_frequency_invalid' => 'Unsupported sending frequency',
+    'report_template_not_found' => 'Report template not found',
+    'report_export_unavailable' => 'Export library not installed, unable to generate this format',
+    'report_sent' => 'Report sent to :count recipients',
+    'report_no_recipients' => 'Report has no recipients configured',
     'provider' => [
         'wechat' => 'WeChat Open Platform',
         'wechat_work_internal' => 'WeChat Work (Internal App)',

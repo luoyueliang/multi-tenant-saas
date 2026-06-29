@@ -178,4 +178,56 @@ return [
         // 存储用量告警阈值（MB）
         'storage_usage_threshold_mb' => (int) env('STORAGE_USAGE_THRESHOLD_MB', 10240),
     ],
+
+    // 错误追踪配置（TASK-025）
+    'error_tracking' => [
+        // Sentry 集成开关（需 composer require sentry/sentry-laravel）
+        'sentry' => [
+            'enabled' => (bool) env('SENTRY_ENABLED', false),
+            'dsn' => env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN')),
+            // 采样率（0~1）
+            'sample_rate' => (float) env('SENTRY_SAMPLE_RATE', 1.0),
+            // 上下文环境
+            'environment' => env('SENTRY_ENVIRONMENT', env('APP_ENV', 'production')),
+        ],
+        // 错误聚合默认时间窗口（小时）
+        'aggregation_window_hours' => (int) env('ERROR_AGGREGATION_WINDOW_HOURS', 24),
+        // 错误趋势默认粒度（day / hour）
+        'default_granularity' => env('ERROR_TREND_GRANULARITY', 'day'),
+        // 单次聚合最大错误类型数
+        'max_error_groups' => (int) env('ERROR_MAX_GROUPS', 100),
+    ],
+
+    // 自定义报表配置（TASK-025）
+    'reports' => [
+        // 默认导出格式
+        'default_format' => env('REPORT_DEFAULT_FORMAT', 'csv'),
+        // PDF 视图模板
+        'pdf_view' => env('REPORT_PDF_VIEW', 'pdf.report'),
+        // 定时发送队列
+        'queue' => env('REPORT_QUEUE', 'default'),
+        // 每日发送时刻（H:i）
+        'daily_send_time' => env('REPORT_DAILY_SEND_TIME', '08:00'),
+        // 报表模板预置
+        'templates' => [
+            'errors_summary' => [
+                'metrics_config' => ['metrics' => ['errors'], 'aggregation' => 'count'],
+                'dimensions' => ['by_day', 'by_tenant'],
+                'format' => 'csv',
+                'description' => '错误汇总报表',
+            ],
+            'cost_overview' => [
+                'metrics_config' => ['metrics' => ['costs', 'ai_requests'], 'aggregation' => 'sum'],
+                'dimensions' => ['by_day'],
+                'format' => 'excel',
+                'description' => '成本与 AI 用量概览',
+            ],
+            'operations_daily' => [
+                'metrics_config' => ['metrics' => ['errors', 'alerts'], 'aggregation' => 'count'],
+                'dimensions' => ['by_day'],
+                'format' => 'pdf',
+                'description' => '运营日报',
+            ],
+        ],
+    ],
 ];
