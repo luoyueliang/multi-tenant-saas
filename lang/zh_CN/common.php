@@ -98,6 +98,21 @@ return [
     'feature_flag_not_found' => '功能开关 :name 不存在',
     'feature_flag_disabled' => '功能未开放',
     'feature_flag_percentage_invalid' => '灰度比例必须在 0-100 之间',
+
+    // 指标采集与 SLA 监控（TASK-023）
+    'metrics_collect_starting' => '开始采集指标快照',
+    'metrics_snapshots_collected' => '已采集 :count 条指标快照',
+    'metrics_aggregated' => '已将 :count 条 :from 粒度数据聚合到 :to 粒度（:label）',
+    'metrics_collect_failed' => '指标采集失败',
+    'metrics_no_data' => '暂无指标数据',
+    'metrics_unknown_metric' => '未知指标 :metric',
+    'sla_event_triggered' => 'SLA 事件触发：类型 :type，影响范围 :scope，受影响数 :count',
+    'sla_breach_detected' => 'SLA 违约：等级 :level，目标 :target%，实际 :actual%',
+    'sla_breaches_detected' => '检测到 :count 个 SLA 违约',
+    'sla_no_breaches' => '未检测到 SLA 违约',
+    'sla_check_starting' => '开始检查 SLA 达标情况',
+    'sla_event_not_found' => 'SLA 事件不存在',
+    'sla_event_resolved' => 'SLA 事件已解决',
     'provider' => [
         'wechat' => '微信开放平台',
         'wechat_work_internal' => '企业微信（内部应用）',

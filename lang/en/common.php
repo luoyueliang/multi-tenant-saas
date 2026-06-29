@@ -98,6 +98,21 @@ return [
     'feature_flag_not_found' => 'Feature flag :name not found',
     'feature_flag_disabled' => 'Feature is not available',
     'feature_flag_percentage_invalid' => 'Rollout percentage must be between 0 and 100',
+
+    // Metrics collection & SLA monitoring (TASK-023)
+    'metrics_collect_starting' => 'Started collecting metrics snapshots',
+    'metrics_snapshots_collected' => 'Collected :count metric snapshots',
+    'metrics_aggregated' => 'Aggregated :count :from-granularity records into :to granularity (:label)',
+    'metrics_collect_failed' => 'Metrics collection failed',
+    'metrics_no_data' => 'No metrics data available',
+    'metrics_unknown_metric' => 'Unknown metric :metric',
+    'sla_event_triggered' => 'SLA event triggered: type :type, scope :scope, affected :count',
+    'sla_breach_detected' => 'SLA breach: level :level, target :target%, actual :actual%',
+    'sla_breaches_detected' => 'Detected :count SLA breach(es)',
+    'sla_no_breaches' => 'No SLA breaches detected',
+    'sla_check_starting' => 'Started checking SLA compliance',
+    'sla_event_not_found' => 'SLA event not found',
+    'sla_event_resolved' => 'SLA event resolved',
     'provider' => [
         'wechat' => 'WeChat Open Platform',
         'wechat_work_internal' => 'WeChat Work (Internal App)',

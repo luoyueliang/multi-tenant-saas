@@ -964,6 +964,48 @@ abstract class TestCase extends BaseTestCase
             $table->index('status');
             $table->index('scope');
         });
+
+        // 指标快照表（TASK-023）
+        Schema::create('metrics_snapshots', function (Blueprint $table) {
+            $table->unsignedBigInteger('metrics_snapshot_id')->primary();
+            $table->bigInteger('tenant_id')->unsigned()->nullable();
+            $table->string('metric_name', 100);
+            $table->double('metric_value')->default(0);
+            $table->string('dimension_type', 30)->nullable();
+            $table->string('dimension_value', 200)->nullable();
+            $table->string('granularity', 10)->default('minute');
+            $table->boolean('aggregated')->default(false);
+            $table->timestamp('sampled_at');
+            $table->timestamps();
+
+            $table->index(['metric_name', 'granularity', 'sampled_at']);
+            $table->index(['tenant_id', 'metric_name', 'sampled_at']);
+            $table->index(['dimension_type', 'dimension_value']);
+            $table->index('sampled_at');
+        });
+
+        // SLA 事件表（TASK-023）
+        Schema::create('sla_events', function (Blueprint $table) {
+            $table->unsignedBigInteger('sla_event_id')->primary();
+            $table->bigInteger('tenant_id')->unsigned()->nullable();
+            $table->string('event_type', 20);
+            $table->string('severity', 20)->default('warning');
+            $table->string('affected_scope', 100)->default('global');
+            $table->unsignedInteger('affected_count')->default(0);
+            $table->timestamp('started_at');
+            $table->timestamp('ended_at')->nullable();
+            $table->unsignedInteger('duration_sec')->default(0);
+            $table->string('status', 20)->default('active');
+            $table->text('root_cause')->nullable();
+            $table->text('resolution_notes')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+
+            $table->index(['tenant_id', 'status', 'started_at']);
+            $table->index(['event_type', 'started_at']);
+            $table->index('status');
+            $table->index('started_at');
+        });
     }
 
     protected function tearDown(): void

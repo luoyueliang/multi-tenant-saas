@@ -28,6 +28,7 @@ use MultiTenantSaas\Services\CacheService;
 use MultiTenantSaas\Services\DeveloperPortalService;
 use MultiTenantSaas\Services\EventBusService;
 use MultiTenantSaas\Services\ExportService;
+use MultiTenantSaas\Services\MetricsService;
 use MultiTenantSaas\Services\FeatureFlagService;
 use MultiTenantSaas\Services\HealthService;
 use MultiTenantSaas\Services\IdGenerator;
@@ -38,6 +39,7 @@ use MultiTenantSaas\Services\PluginService;
 use MultiTenantSaas\Services\QueueService;
 use MultiTenantSaas\Services\RateLimitService;
 use MultiTenantSaas\Services\SandboxService;
+use MultiTenantSaas\Services\SlaService;
 use MultiTenantSaas\Services\SocialiteService;
 use MultiTenantSaas\Services\StructuredLogService;
 use MultiTenantSaas\Services\SubscriptionService;
@@ -165,5 +167,9 @@ class TenancyServiceProvider extends ServiceProvider
         // 注册开发者门户与沙箱服务
         $this->app->singleton(DeveloperPortalService::class);
         $this->app->singleton(SandboxService::class);
+
+        // 注册指标采集与 SLA 监控服务
+        $this->app->singleton(MetricsService::class);
+        $this->app->singleton(SlaService::class);
     }
 }
