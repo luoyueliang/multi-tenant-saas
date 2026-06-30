@@ -1686,14 +1686,101 @@
       "input_tokens": 0,
       "output_tokens": 0,
       "call_details": []
+    },
+    {
+      "task_id": "TASK-049",
+      "role": "dev",
+      "success": true,
+      "duration": 461.03,
+      "model": "xiaomi/mimo-v2.5-pro",
+      "cli_tool": "mimo",
+      "retry_count": 0,
+      "error_category": "",
+      "timestamp": "2026-06-30T14:35:36.516024",
+      "tokens_used": 98052,
+      "cache_hit": 14397568,
+      "cache_miss": 0,
+      "input_tokens": 92163,
+      "output_tokens": 5889,
+      "call_details": [
+        {
+          "cli_tool": "mimo",
+          "model": "xiaomi/mimo-v2.5-pro",
+          "timestamp": "2026-06-30T14:35:36.485674",
+          "duration": 0,
+          "input_tokens": 92163,
+          "output_tokens": 5889,
+          "cache_read": 14397568,
+          "cache_write": 0,
+          "total_tokens": 98052,
+          "raw_usage": {
+            "total": 14496651,
+            "input": 92163,
+            "output": 5889,
+            "reasoning": 1031
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-049",
+      "role": "review",
+      "success": true,
+      "duration": 0.0,
+      "model": "alibaba-cn/deepseek-v4-pro",
+      "cli_tool": "opencode",
+      "retry_count": 0,
+      "error_category": "",
+      "timestamp": "2026-06-30T14:36:14.286815",
+      "tokens_used": 130837,
+      "cache_hit": 0,
+      "cache_miss": 0,
+      "input_tokens": 129517,
+      "output_tokens": 1320,
+      "call_details": [
+        {
+          "cli_tool": "opencode",
+          "model": "alibaba-cn/deepseek-v4-pro",
+          "timestamp": "2026-06-30T14:35:59.893359",
+          "duration": 0,
+          "input_tokens": 129517,
+          "output_tokens": 1320,
+          "cache_read": 0,
+          "cache_write": 0,
+          "total_tokens": 130837,
+          "raw_usage": {
+            "total": 130837,
+            "input": 129517,
+            "output": 1320,
+            "reasoning": 0
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-049",
+      "role": "test",
+      "success": true,
+      "duration": 0.0,
+      "model": "",
+      "cli_tool": "test_runner",
+      "retry_count": 0,
+      "error_category": "",
+      "timestamp": "2026-06-30T14:36:14.322881",
+      "tokens_used": 0,
+      "cache_hit": 0,
+      "cache_miss": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "call_details": []
     }
   ],
   "summary": {
-    "total_executions": 67,
-    "total_success": 57,
+    "total_executions": 70,
+    "total_success": 60,
     "total_failures": 10,
-    "total_tokens_used": 20678357,
-    "total_cache_hit": 152275392,
+    "total_tokens_used": 20907246,
+    "total_cache_hit": 166672960,
     "total_cache_miss": 0,
     "by_role": {
       "guardian_task": {
@@ -1715,8 +1802,8 @@
         "success_rate": 100.0
       },
       "test": {
-        "total": 22,
-        "success": 22,
+        "total": 23,
+        "success": 23,
         "avg_duration": 0.0,
         "tokens_used": 0,
         "cache_hit": 0,
@@ -1724,19 +1811,19 @@
         "success_rate": 100.0
       },
       "dev": {
-        "total": 3,
-        "success": 3,
-        "avg_duration": 351.6,
-        "tokens_used": 283264,
-        "cache_hit": 37916288,
+        "total": 4,
+        "success": 4,
+        "avg_duration": 378.96,
+        "tokens_used": 381316,
+        "cache_hit": 52313856,
         "cache_miss": 0,
         "success_rate": 100.0
       },
       "review": {
-        "total": 3,
-        "success": 3,
+        "total": 4,
+        "success": 4,
         "avg_duration": 0.0,
-        "tokens_used": 536980,
+        "tokens_used": 667817,
         "cache_hit": 37320704,
         "cache_miss": 0,
         "success_rate": 100.0
@@ -1744,8 +1831,8 @@
     },
     "by_model": {
       "": {
-        "total": 40,
-        "success": 30
+        "total": 41,
+        "success": 31
       },
       "mimo/mimo-v2.5-pro": {
         "total": 6,
@@ -1764,21 +1851,21 @@
         "success": 5
       },
       "xiaomi/mimo-v2.5-pro": {
-        "total": 7,
-        "success": 7
+        "total": 8,
+        "success": 8
       },
       "alibaba-cn/deepseek-v4-pro": {
-        "total": 3,
-        "success": 3
+        "total": 4,
+        "success": 4
       }
     },
     "by_error_category": {
       "unknown": 10,
-      "": 45,
+      "": 48,
       "skipped: 80 unrelated failures": 7,
       "skipped: 3 unrelated failures": 5
     },
-    "overall_success_rate": 85.1
+    "overall_success_rate": 85.7
   },
-  "updated": "2026-06-30T14:26:54.711294"
+  "updated": "2026-06-30T14:36:14.322918"
 }

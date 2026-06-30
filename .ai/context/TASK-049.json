@@ -1,0 +1,17 @@
+{
+  "task_id": "TASK-049",
+  "git_diff_summary": ".ai/metrics.json                                  | 108 ++++++++++--\n .ai/state.json                                    |   4 +-\n app/Http/Controllers/Api/AgentStatsController.php | 170 ++++++++++++++++++\n app/Http/Controllers/Api/ToolController.php       | 203 ++++++++++++++++++++++\n app/Http/Requests/Agent/RegisterToolRequest.php   |  29 ++++\n app/Http/Requests/Agent/UpdateToolRequest.php     |  28 +++\n app/Http/Resources/ToolLogResource.php            |  28 +++\n app/Http/Resources/ToolResource.php               |  29 ++++\n 8 files changed, 578 insertions(+), 21 deletions(-)",
+  "changed_files": [
+    ".ai/metrics.json",
+    ".ai/state.json",
+    "app/Http/Controllers/Api/AgentStatsController.php",
+    "app/Http/Controllers/Api/ToolController.php",
+    "app/Http/Requests/Agent/RegisterToolRequest.php",
+    "app/Http/Requests/Agent/UpdateToolRequest.php",
+    "app/Http/Resources/ToolLogResource.php",
+    "app/Http/Resources/ToolResource.php"
+  ],
+  "review_notes": "## Review: TASK-049 AgentStatsController 与 ToolController\n\n---\n\n## Architecture\n**评价：中等偏上**\n\n- 两个控制器职责清晰，`AgentStatsController` 负责监控统计，`ToolController` 负责工具管理，边界分明。\n- `AgentStatsController` 统一委托给 `AgentMonitorContract`，`ToolController` 直接操作 `AgentTool` Eloquent 模型——与 TASK-047/048 中 Agent 操作混用服务层和 Eloquent 的模式一脉相承，可接受。\n- `ToolController.store()` 在 DB 持久化后同步调用 `ToolRegistry->register()` 更新运行时注册表，DB 和运行时状态同步，设计合理。\n- `AgentStatsController.toolLogs()` 使用子查询关联 `agent_conversations` 做租户隔离，而非直接查 `AgentT",
+  "key_decisions": [],
+  "timestamp": ""
+}

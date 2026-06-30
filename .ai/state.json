@@ -116,8 +116,8 @@
     },
     {
       "id": "TASK-049",
-      "status": "READY",
-      "updated": "2026-06-30T00:09:25.705091",
+      "status": "DONE",
+      "updated": "2026-06-30T14:36:14.288833",
       "title": "AgentStatsController 与 ToolController",
       "sprint": "sprint-agent"
     },
