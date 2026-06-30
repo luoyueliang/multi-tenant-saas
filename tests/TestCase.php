@@ -74,6 +74,8 @@ abstract class TestCase extends BaseTestCase
             $table->timestamp('subscription_expires_at')->nullable();
             $table->boolean('auto_renew')->default(false);
             $table->timestamp('trial_ends_at')->nullable();
+            $table->boolean('trial_extended')->default(false);
+            $table->timestamp('trial_notification_sent_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -597,6 +599,104 @@ abstract class TestCase extends BaseTestCase
                 ->references('tenant_id')
                 ->on('tenants')
                 ->onDelete('cascade');
+        });
+
+        // 优惠券表
+        Schema::create('coupons', function (Blueprint $table) {
+            $table->unsignedBigInteger('coupon_id')->primary();
+            $table->string('code', 64)->unique();
+            $table->string('description')->nullable();
+            $table->string('type', 20)->default('fixed');
+            $table->decimal('value', 12, 2)->default(0);
+            $table->string('currency', 8)->nullable();
+            $table->decimal('min_amount', 12, 2)->nullable();
+            $table->decimal('max_discount', 12, 2)->nullable();
+            $table->string('applies_to', 20)->default('subscription');
+            $table->unsignedBigInteger('subscription_plan_id')->nullable();
+            $table->unsignedSmallInteger('duration_months')->nullable();
+            $table->unsignedInteger('max_uses')->nullable();
+            $table->unsignedSmallInteger('max_uses_per_tenant')->default(1);
+            $table->unsignedInteger('used_count')->default(0);
+            $table->timestamp('starts_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+
+            $table->index('subscription_plan_id');
+            $table->index('is_active');
+            $table->index('expires_at');
+        });
+
+        Schema::create('coupon_usages', function (Blueprint $table) {
+            $table->unsignedBigInteger('coupon_usage_id')->primary();
+            $table->unsignedBigInteger('coupon_id');
+            $table->unsignedBigInteger('tenant_id')->index();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('invoice_id')->nullable();
+            $table->unsignedBigInteger('subscription_plan_id')->nullable();
+            $table->decimal('discount_amount', 12, 2)->default(0);
+            $table->string('currency', 8)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+
+            $table->foreign('coupon_id')->references('coupon_id')->on('coupons')->onDelete('cascade');
+            $table->index(['coupon_id', 'tenant_id']);
+            $table->index('user_id');
+            $table->index('invoice_id');
+        });
+
+        // 发票表
+        Schema::create('invoices', function (Blueprint $table) {
+            $table->unsignedBigInteger('invoice_id')->primary();
+            $table->bigInteger('tenant_id')->unsigned()->index();
+            $table->string('invoice_number')->unique();
+            $table->decimal('subtotal', 12, 2);
+            $table->decimal('tax_amount', 12, 2);
+            $table->decimal('total', 12, 2);
+            $table->string('currency', 3);
+            $table->string('status', 20)->default('draft');
+            $table->dateTime('issued_at')->nullable();
+            $table->date('due_date')->nullable();
+            $table->unsignedBigInteger('subscription_id')->nullable();
+            $table->unsignedBigInteger('payment_order_id')->nullable();
+            $table->timestamps();
+
+            $table->index(['tenant_id', 'status']);
+            $table->index('issued_at');
+        });
+
+        Schema::create('invoice_items', function (Blueprint $table) {
+            $table->unsignedBigInteger('invoice_item_id')->primary();
+            $table->bigInteger('tenant_id')->unsigned()->index();
+            $table->unsignedBigInteger('invoice_id');
+            $table->string('description');
+            $table->decimal('quantity', 8, 2);
+            $table->decimal('unit_price', 12, 2);
+            $table->decimal('amount', 12, 2);
+            $table->decimal('tax_rate', 5, 4);
+            $table->decimal('tax_amount', 12, 2);
+            $table->nullableMorphs('related');
+            $table->timestamps();
+
+            $table->index('invoice_id');
+        });
+
+        // 税务规则表
+        Schema::create('tax_rules', function (Blueprint $table) {
+            $table->unsignedBigInteger('tax_rule_id')->primary();
+            $table->bigInteger('tenant_id')->unsigned()->index();
+            $table->string('region_code', 10);
+            $table->decimal('tax_rate', 5, 4);
+            $table->string('tax_name');
+            $table->date('effective_date');
+            $table->date('expiry_date')->nullable();
+            $table->boolean('is_default')->default(false);
+            $table->timestamps();
+
+            $table->index('region_code');
+            $table->index(['region_code', 'is_default']);
+            $table->index('effective_date');
         });
     }
 
