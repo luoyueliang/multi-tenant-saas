@@ -698,6 +698,46 @@ abstract class TestCase extends BaseTestCase
             $table->index(['region_code', 'is_default']);
             $table->index('effective_date');
         });
+
+        // Agent 框架表（TASK-037 / TASK-039 / TASK-051）
+        Schema::create('agents', function (Blueprint $table) {
+            $table->bigInteger('agent_id')->unsigned()->primary();
+            $table->bigInteger('tenant_id')->unsigned();
+            $table->string('name', 100);
+            $table->string('role', 50);
+            $table->string('avatar', 500)->nullable();
+            $table->text('system_prompt');
+            $table->text('description')->nullable();
+            $table->json('tools')->nullable();
+            $table->json('kb_ids')->nullable();
+            $table->json('feature_keys')->nullable();
+            $table->json('model_config');
+            $table->boolean('enabled')->default(true);
+            $table->boolean('is_builtin')->default(false);
+            $table->json('metadata')->nullable();
+            $table->integer('version')->default(1);
+            $table->timestamps();
+
+            $table->index(['tenant_id']);
+            $table->index(['tenant_id', 'role']);
+            $table->index(['tenant_id', 'enabled']);
+        });
+
+        Schema::create('agent_tools', function (Blueprint $table) {
+            $table->bigInteger('tool_id')->unsigned()->primary();
+            $table->bigInteger('tenant_id')->unsigned()->default(0);
+            $table->string('name', 100);
+            $table->string('slug', 100)->unique();
+            $table->text('description');
+            $table->string('category', 50)->nullable();
+            $table->json('parameters_schema');
+            $table->string('handler_class', 255);
+            $table->boolean('enabled')->default(true);
+            $table->timestamps();
+
+            $table->index('slug');
+            $table->index('tenant_id');
+        });
     }
 
     protected function tearDown(): void

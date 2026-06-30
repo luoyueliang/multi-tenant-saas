@@ -130,8 +130,8 @@
     },
     {
       "id": "TASK-051",
-      "status": "READY",
-      "updated": "2026-06-30T00:09:25.705851",
+      "status": "DONE",
+      "updated": "2026-06-30T15:42:00.532393",
       "title": "单元测试 — AgentService + ToolRegistry",
       "sprint": "sprint-agent"
     },
