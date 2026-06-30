@@ -1,12 +1,9 @@
 {
   "task_id": "TASK-034",
-  "git_diff_summary": ".ai/context/TASK-033.json     | 21 +++++++++++++++++++++\n .ai/metrics.json              | 42 ++++++++++++++++++++++++++++--------------\n .ai/review/TASK-034-review.md | 23 ++++++++++-------------\n .ai/state.json                |  2 +-\n .ai/tasks/TASK-034-fix.md     | 12 ------------\n 5 files changed, 60 insertions(+), 40 deletions(-)",
+  "git_diff_summary": ".ai/metrics.json | 42 ++++++++++++++++++++++++++++--------------\n .ai/state.json   |  6 +++---\n 2 files changed, 31 insertions(+), 17 deletions(-)",
   "changed_files": [
-    ".ai/context/TASK-033.json",
     ".ai/metrics.json",
-    ".ai/review/TASK-034-review.md",
-    ".ai/state.json",
-    ".ai/tasks/TASK-034-fix.md"
+    ".ai/state.json"
   ],
   "review_notes": "",
   "key_decisions": [],
