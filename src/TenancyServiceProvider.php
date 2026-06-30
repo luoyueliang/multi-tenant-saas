@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use MultiTenantSaas\Console\Commands\CheckTenantIsolation;
+use MultiTenantSaas\Contracts\AgentServiceContract;
 use MultiTenantSaas\Contracts\AiTextServiceContract;
 use MultiTenantSaas\Contracts\IdGeneratorContract;
 use MultiTenantSaas\Contracts\TenantContextContract;
@@ -17,6 +18,7 @@ use MultiTenantSaas\Events\UserLoggedIn;
 use MultiTenantSaas\Events\UserRegistered;
 use MultiTenantSaas\Listeners\LogEventListener;
 use MultiTenantSaas\Services\Ai\AiTextService;
+use MultiTenantSaas\Services\Agent\AgentService;
 use MultiTenantSaas\Services\AlipayOAuthService;
 use MultiTenantSaas\Services\AlertService;
 use MultiTenantSaas\Services\ApiVersionService;
@@ -112,6 +114,14 @@ class TenancyServiceProvider extends ServiceProvider
             return new AiTextService();
         });
         $this->app->alias(AiTextServiceContract::class, AiTextService::class);
+
+        // 注册 Agent 服务（绑定接口契约 + 具体实现）
+        $this->app->singleton(AgentServiceContract::class, function ($app) {
+            return new AgentService(
+                $app->make(TenantContextContract::class)
+            );
+        });
+        $this->app->alias(AgentServiceContract::class, AgentService::class);
 
         // 注册配置存储
         $this->app->singleton(TenantConfigStore::class, function () {

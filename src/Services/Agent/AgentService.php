@@ -161,19 +161,67 @@ class AgentService implements AgentServiceContract
     }
 
     /**
-     * 获取预置模板列表（由 TASK-041 实现）
+     * 获取预置模板列表
+     *
+     * 框架提供 8 个角色骨架空模板（客服/销售/营销/数据分析等），
+     * feature_keys 留空由业务层填充。
      */
-    public function getBuiltinTemplates(): Collection
+    public function getBuiltinTemplates(): SupportCollection
     {
-        throw new \BadMethodCallException('模板克隆功能由 TASK-041 实现');
+        return BuiltinAgentTemplates::all();
     }
 
     /**
-     * 从模板克隆 Agent（由 TASK-041 实现）
+     * 从预置模板克隆 Agent 到目标租户
+     *
+     * 复制模板的 system_prompt/tools/kb_ids/feature_keys/model_config，
+     * 允许通过 $overrides 覆盖部分字段。
+     *
+     * @param  int  $templateId  模板 ID
+     * @param  int  $tenantId    目标租户 ID
+     * @param  array  $overrides 覆盖字段（仅允许 CLONE_OVERRIDABLE_KEYS 中的键）
      */
     public function cloneFromTemplate(int $templateId, int $tenantId, array $overrides = []): Agent
     {
-        throw new \BadMethodCallException('模板克隆功能由 TASK-041 实现');
+        $template = BuiltinAgentTemplates::find($templateId);
+
+        if ($template === null) {
+            throw new \InvalidArgumentException("预置模板 [{$templateId}] 不存在");
+        }
+
+        // 仅允许覆盖白名单中的字段
+        $allowedOverrides = array_intersect_key(
+            $overrides,
+            array_flip(BuiltinAgentTemplates::CLONE_OVERRIDABLE_KEYS)
+        );
+
+        DB::beginTransaction();
+        try {
+            $agent = Agent::create([
+                'tenant_id' => $tenantId,
+                'name' => $allowedOverrides['name'] ?? $template['name'],
+                'role' => $template['role'],
+                'avatar' => $allowedOverrides['avatar'] ?? $template['avatar'],
+                'system_prompt' => $template['system_prompt'],
+                'description' => $allowedOverrides['description'] ?? $template['description'],
+                'tools' => $allowedOverrides['tools'] ?? $template['tools'],
+                'kb_ids' => $allowedOverrides['kb_ids'] ?? $template['kb_ids'],
+                'feature_keys' => $allowedOverrides['feature_keys'] ?? $template['feature_keys'],
+                'model_config' => $allowedOverrides['model_config'] ?? $template['model_config'],
+                'enabled' => $allowedOverrides['enabled'] ?? true,
+                'is_builtin' => true,
+                'metadata' => ['cloned_from_template' => $templateId],
+            ]);
+
+            DB::commit();
+
+            Event::dispatch(new AgentCreated($tenantId, (int) $agent->agent_id));
+
+            return $agent->fresh();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
     /**
