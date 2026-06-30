@@ -15,8 +15,8 @@
     },
     "developer": {
       "name": "开发工程师",
-      "cli_tool": "opencode",
-      "model": "bailian/glm-5.2",
+      "cli_tool": "claude",
+      "model": "qwen3.7-max",
       "prompt_file": "prompts/dev-prompt.md",
       "description": "代码开发",
       "timeout": 300
@@ -31,8 +31,8 @@
     },
     "fixer": {
       "name": "修复工程师",
-      "cli_tool": "opencode",
-      "model": "bailian/glm-5.2",
+      "cli_tool": "claude",
+      "model": "qwen3.7-max",
       "prompt_file": "prompts/fix-prompt.md",
       "description": "代码修复（复用DEV上下文）",
       "timeout": 300
