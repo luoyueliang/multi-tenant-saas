@@ -5,6 +5,7 @@ namespace MultiTenantSaas\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use MultiTenantSaas\Concerns\BelongsToTenant;
@@ -73,5 +74,19 @@ class Agent extends Model
     public function workflow(): BelongsTo
     {
         return $this->belongsTo(Workflow::class, 'workflow_id', 'workflow_id');
+    }
+
+    public function workflows(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Workflow::class,
+            'agent_workflows',
+            'agent_id',
+            'workflow_id',
+            'agent_id',
+            'workflow_id'
+        )->using(AgentWorkflow::class)
+         ->withPivot(['is_primary', 'sort_order'])
+         ->orderByPivot('sort_order');
     }
 }
